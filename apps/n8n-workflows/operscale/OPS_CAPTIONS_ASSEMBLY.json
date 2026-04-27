@@ -1,0 +1,1822 @@
+{
+  "name": "OPS_CAPTIONS_ASSEMBLY",
+  "nodes": [
+    {
+      "id": "webhook-assembly-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        256,
+        880
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "production/assembly",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        },
+        "authentication": "headerAuth"
+      },
+      "webhookId": "production-assembly-webhook",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "KtMyWD7uJJBZYLjt",
+          "name": "Authorization"
+        }
+      }
+    },
+    {
+      "id": "if-auth-assembly",
+      "name": "Check Auth Token",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        480,
+        880
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "auth-check-assembly",
+              "leftValue": "={{ $json.headers.authorization }}",
+              "rightValue": "=Bearer {{ $env.DASHBOARD_API_TOKEN }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "respond-unauthorized",
+      "name": "Respond Unauthorized",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        704,
+        976
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, data: null, error: 'Unauthorized' }) }}",
+        "options": {
+          "responseCode": 401
+        }
+      }
+    },
+    {
+      "id": "respond-accepted",
+      "name": "Respond Assembly Accepted",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        704,
+        784
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, data: { video_id: $('Webhook Trigger').item.json.body.video_id, message: 'Assembly workflow started' }, error: null }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "update-status-assembling",
+      "name": "Update Status Assembling",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        928,
+        784
+      ],
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/videos",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "=eq.{{ $('Webhook Trigger').item.json.body.video_id }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_ANON_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'assembling', assembly_status: 'in_progress', last_status_change: new Date().toISOString() }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "load-all-scenes",
+      "name": "Load All Scenes",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1152,
+        664
+      ],
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/scenes",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "video_id",
+              "value": "=eq.{{ $('Webhook Trigger').item.json.body.video_id }}"
+            },
+            {
+              "name": "order",
+              "value": "scene_number.asc"
+            },
+            {
+              "name": "select",
+              "value": "id,video_id,order_id,scene_number,scene_id,narration_text,visual_type,audio_duration_ms,audio_file_url,audio_file_drive_id,image_url,image_drive_id,video_url,video_drive_id,start_time_ms,end_time_ms,skipped,skip_reason,audio_status,image_status,video_status"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_ANON_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "load-topic",
+      "name": "Load Topic",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1152,
+        856
+      ],
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/videos",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "=eq.{{ $('Webhook Trigger').item.json.body.video_id }}"
+            },
+            {
+              "name": "select",
+              "value": "id,order_id,topic_number,seo_title,drive_folder_id,drive_subfolder_ids"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_ANON_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "log-assembly-started",
+      "name": "Log Assembly Started",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1376,
+        784
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/production_log",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_ANON_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ order_id: $('Load Topic').item.json[0]?.order_id || $('Load All Scenes').item.json[0]?.order_id, video_id: $('Webhook Trigger').item.json.body.video_id, stage: 'assembly', action: 'started', details: { total_scenes: $('Load All Scenes').item.json.length } }) }}",
+        "options": {},
+        "jsCode": "\n\n// Reset clip_status so dashboard shows real-time rebuild progress\nconst topicId2 = $input.first().json.video_id || $input.first().json.data?.video_id;\nif (topicId2) {\n  try {\n    await fetch($env.SUPABASE_URL + '/rest/v1/scenes?video_id=eq.' + topicId2 + '&clip_status=eq.complete', {\n      method: 'PATCH',\n      headers: {'apikey': $env.SUPABASE_SERVICE_ROLE_KEY, 'Authorization': 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal'},\n      body: JSON.stringify({clip_status: 'pending'})\n    });\n  } catch(e) { /* non-fatal */ }\n}\n",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "generate-srt-and-prepare",
+      "name": "Generate SRT and Prepare",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        784
+      ],
+      "parameters": {
+        "jsCode": "const allScenes = $('Load All Scenes').all().map(item => item.json);\nconst topic = $('Load Topic').first().json;\nconst topicData = Array.isArray(topic) ? topic[0] : topic;\nconst topicId = topicData.id || $('Webhook Trigger').item.json.body.video_id;\nconst topicTitle = (topicData.seo_title || 'video').replace(/[^a-zA-Z0-9_ -]/g, '').substring(0, 80);\nconst sanitizedTitle = topicTitle.replace(/[^a-zA-Z0-9_-]/g, '_');\n\nfunction msToSrt(ms) {\n  const totalSeconds = Math.floor(ms / 1000);\n  const hours = Math.floor(totalSeconds / 3600);\n  const minutes = Math.floor((totalSeconds % 3600) / 60);\n  const seconds = totalSeconds % 60;\n  const millis = ms % 1000;\n  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')},${String(millis).padStart(3, '0')}`;\n}\n\n// Split text into chunks of ~10-12 words for readable captions\nfunction splitIntoChunks(text, maxWords) {\n  const words = text.trim().split(/\\s+/);\n  const chunks = [];\n  for (let i = 0; i < words.length; i += maxWords) {\n    chunks.push(words.slice(i, i + maxWords).join(' '));\n  }\n  return chunks;\n}\n\nlet srtEntries = [];\nlet sequenceNum = 1;\nlet skippedCount = 0;\nlet totalDurationMs = 0;\nconst WORDS_PER_CHUNK = 10;\n\nfor (const scene of allScenes) {\n  const startMs = scene.start_time_ms || 0;\n  const endMs = scene.end_time_ms || (startMs + (scene.audio_duration_ms || 0));\n  if (endMs > totalDurationMs) totalDurationMs = endMs;\n  const sceneDuration = endMs - startMs;\n\n  if (scene.skipped || !scene.narration_text || !scene.narration_text.trim()) {\n    if (scene.skipped) skippedCount++;\n    continue;\n  }\n\n  const text = scene.narration_text.trim();\n  const chunks = splitIntoChunks(text, WORDS_PER_CHUNK);\n  const totalWords = text.split(/\\s+/).length;\n  const msPerWord = sceneDuration / totalWords;\n\n  let wordOffset = 0;\n  for (const chunk of chunks) {\n    const chunkWords = chunk.split(/\\s+/).length;\n    const chunkStartMs = Math.round(startMs + (wordOffset * msPerWord));\n    const chunkEndMs = Math.round(startMs + ((wordOffset + chunkWords) * msPerWord));\n    srtEntries.push(`${sequenceNum}\\n${msToSrt(chunkStartMs)} --> ${msToSrt(chunkEndMs)}\\n${chunk}\\n`);\n    sequenceNum++;\n    wordOffset += chunkWords;\n  }\n}\n\nconst srtContent = srtEntries.join('\\n');\nconst srtPath = `/tmp/operscale-production/${topicId}/captions/${sanitizedTitle}.srt`;\nconst srtContentB64 = Buffer.from(srtContent, 'utf8').toString('base64');\n\nconst sceneList = allScenes.map(s => ({\n  id: s.id,\n  scene_number: s.scene_number,\n  scene_id: s.scene_id,\n  visual_type: s.visual_type,\n  audio_duration_ms: s.audio_duration_ms || 0,\n  audio_file_url: s.audio_file_url,\n  audio_file_drive_id: s.audio_file_drive_id,\n  image_url: s.image_url,\n  image_drive_id: s.image_drive_id,\n  video_url: s.video_url,\n  video_drive_id: s.video_drive_id,\n  skipped: s.skipped || false,\n  padded_num: String(s.scene_number).padStart(3, '0')\n}));\n\nreturn [{\n  json: {\n    video_id: topicId,\n    order_id: topicData.order_id || allScenes[0]?.order_id,\n    topic_title: topicTitle,\n    sanitized_title: sanitizedTitle,\n    topic_number: topicData.topic_number,\n    drive_folder_id: topicData.drive_folder_id,\n    drive_subfolder_ids: topicData.drive_subfolder_ids,\n    srt_content: srtContent,\n    srt_content_b64: srtContentB64,\n    srt_path: srtPath,\n    srt_entry_count: sequenceNum - 1,\n    scene_list: sceneList,\n    total_scenes: sceneList.length,\n    skipped_count: skippedCount,\n    total_duration_ms: totalDurationMs,\n    clips_built: 0,\n    clips_failed: 0\n  }\n}];"
+      }
+    },
+    {
+      "id": "write-srt-file",
+      "name": "Write SRT File",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1824,
+        784
+      ],
+      "parameters": {
+        "jsCode": "// Write SRT file to disk\nconst { execSync } = require('child_process');\nconst data = $input.first().json;\nconst topicId = data.video_id;\nconst srtPath = data.srt_path;\nconst srtContent = data.srt_content;\n\n// Create all directories (no brace expansion - ash doesn't support it)\nconst baseDir = `/tmp/operscale-production/${topicId}`;\nexecSync(`mkdir -p ${baseDir}/captions ${baseDir}/clips ${baseDir}/final ${baseDir}/audio ${baseDir}/images ${baseDir}/video_clips`);\n\n// Write SRT content via stdin to avoid ARG_MAX limits\nexecSync(`cat > '${srtPath}'`, { input: srtContent });\n\nreturn [{ json: { ...data, srt_written: true } }];"
+      }
+    },
+    {
+      "id": "expand-scene-list",
+      "name": "Expand Scene List",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2048,
+        784
+      ],
+      "parameters": {
+        "jsCode": "// Convert scene_list to individual items for SplitInBatches\n// FIXED: Reference Generate SRT directly (Write SRT File is now Execute Command)\nconst data = $('Generate SRT and Prepare').first().json;\nconst items = data.scene_list.map(scene => ({\n  json: {\n    ...scene,\n    video_id: data.video_id,\n    order_id: data.order_id,\n    topic_title: data.topic_title,\n    total_scenes: data.total_scenes\n  }\n}));\nreturn items;"
+      }
+    },
+    {
+      "id": "loop-scenes-clips",
+      "name": "Loop Scene Clips",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        2272,
+        784
+      ],
+      "parameters": {
+        "options": {
+          "reset": false
+        }
+      }
+    },
+    {
+      "id": "determine-ffmpeg-cmd",
+      "name": "Determine FFmpeg Command",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2496,
+        208
+      ],
+      "parameters": {
+        "jsCode": "// Determine the FFmpeg command for this scene based on visual_type and skipped status\nconst scene = $input.first().json;\nconst topicId = scene.video_id;\nconst padded = scene.padded_num;\nconst durationSec = (scene.audio_duration_ms / 1000).toFixed(3);\n\nconst audioPath = `/tmp/operscale-production/${topicId}/audio/scene_${padded}.mp3`;\nconst imagePath = `/tmp/operscale-production/${topicId}/images/scene_${padded}.png`;\nconst videoPath = `/tmp/operscale-production/${topicId}/video_clips/scene_${padded}.mp4`;\nconst outputPath = `/tmp/operscale-production/${topicId}/clips/scene_${padded}.mp4`;\n\nlet ffmpegCmd = '';\nlet needsDownload = { audio: false, image: false, video: false };\n\nif (scene.skipped) {\n  // Black frame with white '[Scene skipped]' text\n  ffmpegCmd = `ffmpeg -y -f lavfi -i color=c=black:s=1920x1080:r=30:d=${durationSec} -i ${audioPath} -vf \"drawtext=text='[Scene skipped]':fontcolor=white:fontsize=48:x=(w-text_w)/2:y=(h-text_h)/2\" -c:v libx264 -preset fast -crf 23 -pix_fmt yuv420p -c:a aac -b:a 128k -r 30 -t ${durationSec} -movflags +faststart ${outputPath}`;\n  needsDownload.audio = true;\n} else if (scene.visual_type === 'static_image') {\n  // Static image displayed for audio duration\n  ffmpegCmd = `ffmpeg -y -loop 1 -i ${imagePath} -i ${audioPath} -c:v libx264 -preset fast -crf 23 -pix_fmt yuv420p -c:a aac -b:a 128k -vf \"scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2\" -r 30 -t ${durationSec} -movflags +faststart ${outputPath}`;\n  needsDownload.audio = true;\n  needsDownload.image = true;\n} else if (scene.visual_type === 'i2v' || scene.visual_type === 't2v') {\n  // Video scene - loop if audio > 5s, trim if <= 5s\n  // IMPORTANT: -map 0:v -map 1:a selects video from AI clip and audio from TTS\n  // Without this, FFmpeg uses the AI clip's built-in audio instead of TTS voiceover\n  if (scene.audio_duration_ms > 5000) {\n    ffmpegCmd = `ffmpeg -y -stream_loop -1 -i ${videoPath} -i ${audioPath} -map 0:v -map 1:a -c:v libx264 -preset fast -crf 23 -pix_fmt yuv420p -c:a aac -b:a 128k -vf \"scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2\" -r 30 -t ${durationSec} -movflags +faststart ${outputPath}`;\n  } else {\n    ffmpegCmd = `ffmpeg -y -i ${videoPath} -i ${audioPath} -map 0:v -map 1:a -c:v libx264 -preset fast -crf 23 -pix_fmt yuv420p -c:a aac -b:a 128k -vf \"scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2\" -r 30 -t ${durationSec} -movflags +faststart ${outputPath}`;\n  }\n  needsDownload.audio = true;\n  needsDownload.video = true;\n} else {\n  // Fallback: treat as static image\n  ffmpegCmd = `ffmpeg -y -loop 1 -i ${imagePath} -i ${audioPath} -c:v libx264 -preset fast -crf 23 -pix_fmt yuv420p -c:a aac -b:a 128k -vf \"scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2\" -r 30 -t ${durationSec} -movflags +faststart ${outputPath}`;\n  needsDownload.audio = true;\n  needsDownload.image = true;\n}\n\nreturn [{\n  json: {\n    ...scene,\n    ffmpeg_cmd: ffmpegCmd,\n    output_path: outputPath,\n    audio_path: audioPath,\n    image_path: imagePath,\n    video_path: videoPath,\n    needs_download: needsDownload,\n    duration_sec: parseFloat(durationSec)\n  }\n}];"
+      }
+    },
+    {
+      "id": "prepare-downloads",
+      "name": "Prepare Downloads",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2720,
+        208
+      ],
+      "parameters": {
+        "jsCode": "// Download required assets - images/video via curl, audio handled separately by Google Drive node\nconst scene = $input.first().json;\nconst needs = scene.needs_download;\nconst topicId = scene.video_id;\nconst padded = scene.padded_num;\n\n// Helper: convert Google Drive view URL to direct download URL\nfunction fixDriveUrl(url) {\n  if (!url) return null;\n  const match = url.match(/drive\\.google\\.com\\/file\\/d\\/([^/]+)/);\n  if (match) return `https://drive.google.com/uc?export=download&id=${match[1]}`;\n  return url;\n}\n\nlet downloadCmds = [];\nlet needsDriveAudioDownload = false;\n\n// Audio: if it has a drive_id, the Google Drive HTTP Request node handles it\nif (needs.audio) {\n  if (scene.audio_file_drive_id) {\n    needsDriveAudioDownload = true;\n    // Don't add curl for audio \u2014 handled by Drive OAuth node\n  } else if (scene.audio_file_url) {\n    // Direct URL (not Drive)\n    downloadCmds.push(`curl -sL -o /tmp/operscale-production/${topicId}/audio/scene_${padded}.mp3 \"${scene.audio_file_url}\"`);\n  }\n}\n\nif (needs.image) {\n  const imageUrl = fixDriveUrl(scene.image_url) ||\n    (scene.image_drive_id ? `https://drive.google.com/uc?export=download&id=${scene.image_drive_id}` : null);\n  if (imageUrl) {\n    downloadCmds.push(`curl -sL -o /tmp/operscale-production/${topicId}/images/scene_${padded}.png \"${imageUrl}\"`);\n  }\n}\n\nif (needs.video) {\n  const videoUrl = fixDriveUrl(scene.video_url) ||\n    (scene.video_drive_id ? `https://drive.google.com/uc?export=download&id=${scene.video_drive_id}` : null);\n  if (videoUrl) {\n    downloadCmds.push(`curl -sL -o /tmp/operscale-production/${topicId}/video_clips/scene_${padded}.mp4 \"${videoUrl}\"`);\n  }\n}\n\nreturn [{\n  json: {\n    ...scene,\n    needsDriveAudioDownload,\n    download_cmd: downloadCmds.length > 0 ? downloadCmds.join(' && ') : 'echo \"No curl downloads needed\"'\n  }\n}];"
+      }
+    },
+    {
+      "id": "download-assets",
+      "name": "Download Assets",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2944,
+        208
+      ],
+      "parameters": {
+        "jsCode": "// Download non-Drive assets (images/videos via curl)\nconst { execSync } = require('child_process');\nconst data = $input.first().json;\nconst cmd = data.download_cmd;\n\nif (cmd && cmd !== 'echo \"No curl downloads needed\"') {\n  try {\n    execSync(cmd, { timeout: 300000 });\n  } catch(e) {\n    // Non-fatal: some assets might already exist or be unavailable\n  }\n}\n\nreturn [{ json: { ...data, assets_downloaded: true } }];"
+      }
+    },
+    {
+      "id": "run-ffmpeg-clip",
+      "name": "Build Scene Clip",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3168,
+        208
+      ],
+      "parameters": {
+        "jsCode": "// Build scene clip using FFmpeg shell command\n// WITH post-build verification: checks output fps and sample_rate\nconst { execSync } = require('child_process');\nconst ffmpegCmd = $('Determine FFmpeg Command').item.json.ffmpeg_cmd;\nconst sceneData = $('Determine FFmpeg Command').item.json;\nconst outputPath = sceneData.output_path;\n\nlet stdout = '';\nlet success = false;\ntry {\n  stdout = execSync(ffmpegCmd + ' 2>&1', { timeout: 120000 }).toString();\n  success = true;\n  stdout += '\\nCLIP_SUCCESS';\n\n  // POST-BUILD VERIFICATION: check that output matches expected specs\n  try {\n    var probeCmd = 'ffprobe -v quiet -select_streams v:0 -show_entries stream=r_frame_rate -of csv=p=0 \"' + outputPath + '\" 2>/dev/null';\n    var fps = execSync(probeCmd, { shell: '/bin/sh', timeout: 5000 }).toString().trim();\n    var srCmd = 'ffprobe -v quiet -select_streams a:0 -show_entries stream=sample_rate -of csv=p=0 \"' + outputPath + '\" 2>/dev/null';\n    var sr = execSync(srCmd, { shell: '/bin/sh', timeout: 5000 }).toString().trim();\n    if (fps !== '30/1' || sr !== '24000') {\n      console.log('WARNING: scene_' + sceneData.padded_num + ' output mismatch (fps=' + fps + ' sr=' + sr + '). Re-encoding...');\n      var fixedPath = outputPath.replace('.mp4', '_fixed.mp4');\n      var fixCmd = 'ffmpeg -y -i \"' + outputPath + '\" -r 30 -c:v libx264 -preset fast -pix_fmt yuvj420p -c:a aac -ar 24000 -ac 1 -b:a 128k -movflags +faststart \"' + fixedPath + '\" 2>/dev/null && mv \"' + fixedPath + '\" \"' + outputPath + '\"';\n      execSync(fixCmd, { shell: '/bin/sh', timeout: 120000 });\n      stdout += '\\nCLIP_REENCODED (was fps=' + fps + ' sr=' + sr + ')';\n      console.log('  Fixed scene_' + sceneData.padded_num + ' to 30fps/24kHz');\n    }\n  } catch (probeErr) {\n    console.log('WARNING: post-build probe failed for scene_' + sceneData.padded_num + ': ' + probeErr.message);\n  }\n} catch(e) {\n  stdout = (e.stdout?.toString() || '') + '\\n' + (e.stderr?.toString() || '') + '\\nCLIP_FAILED';\n}\n\nreturn [{ json: { ...sceneData, stdout, success } }];"
+      }
+    },
+    {
+      "id": "if-clip-success",
+      "name": "If Clip Success",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        3392,
+        208
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-clip-success",
+              "leftValue": "={{ $json.stdout }}",
+              "rightValue": "CLIP_SUCCESS",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "mark-clip-complete",
+      "name": "Mark Clip Complete",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3616,
+        112
+      ],
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/scenes",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "=eq.{{ $('Determine FFmpeg Command').item.json.id }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_ANON_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ clip_status: 'complete' }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "mark-clip-failed",
+      "name": "Mark Clip Failed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3616,
+        304
+      ],
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/scenes",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "=eq.{{ $('Determine FFmpeg Command').item.json.id }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_ANON_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ clip_status: 'failed' }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "track-clip-success",
+      "name": "Track Clip Success",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3840,
+        112
+      ],
+      "parameters": {
+        "jsCode": "// Track clip completion/failure counts using workflow static data\nconst staticData = $getWorkflowStaticData('global');\nif (!staticData.clips_built) staticData.clips_built = 0;\nif (!staticData.clips_failed) staticData.clips_failed = 0;\nstaticData.clips_built++;\nreturn [{ json: { clips_built: staticData.clips_built, status: 'complete' } }];"
+      }
+    },
+    {
+      "id": "track-clip-failure",
+      "name": "Track Clip Failure",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3840,
+        304
+      ],
+      "parameters": {
+        "jsCode": "// Track clip failure count\nconst staticData = $getWorkflowStaticData('global');\nif (!staticData.clips_built) staticData.clips_built = 0;\nif (!staticData.clips_failed) staticData.clips_failed = 0;\nstaticData.clips_failed++;\nreturn [{ json: { clips_failed: staticData.clips_failed, status: 'failed', error: $('Build Scene Clip').item.json.stderr || 'FFmpeg error' } }];"
+      }
+    },
+    {
+      "id": "continue-loop",
+      "name": "Continue Loop",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        4064,
+        304
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "generate-concat-list",
+      "name": "Generate Concat List",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2496,
+        784
+      ],
+      "parameters": {
+        "jsCode": "// Generate concat list data \u2014 rewritten without require('fs')\n// File existence checked via shell command in Concat Video node\nconst data = $('Generate SRT and Prepare').first().json;\nconst topicId = data.video_id;\nconst totalScenes = data.total_scenes;\nconst sanitizedTitle = data.sanitized_title || data.topic_title.replace(/[^a-zA-Z0-9_-]/g, '_');\nconst concatPath = `/tmp/operscale-production/${topicId}/concat.txt`;\n\n// Build shell command to generate concat.txt (checks file existence per clip)\nconst concatCmd = `for i in $(seq 1 ${totalScenes}); do p=$(printf \"%03d\" $i); f=\"/tmp/operscale-production/${topicId}/clips/scene_\\${p}.mp4\"; [ -f \"$f\" ] && echo \"file '$f'\"; done > ${concatPath}`;\n\nreturn [{\n  json: {\n    video_id: topicId,\n    order_id: data.order_id,\n    topic_title: data.topic_title,\n    sanitized_title: sanitizedTitle,\n    concat_path: concatPath,\n    concat_cmd: concatCmd,\n    clips_in_concat: totalScenes,\n    total_scenes: totalScenes,\n    skipped_count: data.skipped_count,\n    srt_path: data.srt_path,\n    drive_folder_id: data.drive_folder_id,\n    drive_subfolder_ids: data.drive_subfolder_ids\n  }\n}];"
+      }
+    },
+    {
+      "id": "concat-video",
+      "name": "Concat Video",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2720,
+        784
+      ],
+      "parameters": {
+        "jsCode": "// Concatenate all scene clips into final video\n// WITH pre-concat validation: checks fps, sample_rate, codec on every clip\n// Auto-re-encodes any mismatched clips before concat to prevent truncation\nconst { execSync } = require('child_process');\nconst item = $input.first().json;\nconst topicId = item.video_id;\nconst baseDir = '/tmp/operscale-production/' + topicId;\nconst concatPath = baseDir + '/concat.txt';\nconst totalScenes = item.total_scenes || 170;\n\nconst TARGET_FPS = '30/1';\nconst TARGET_SR = '24000';\nconst TARGET_CODEC_V = 'h264';\nconst TARGET_CODEC_A = 'aac';\n\n// =============================================\n// STEP 1: Generate concat.txt\n// =============================================\nconsole.log('Generating concat.txt for ' + totalScenes + ' scenes...');\ntry {\n  var lines = [];\n  for (var i = 1; i <= totalScenes; i++) {\n    var pad = String(i).padStart(3, '0');\n    lines.push(\"file '\" + baseDir + \"/clips/scene_\" + pad + \".mp4'\");\n  }\n  var content = lines.join('\\n');\n  var b64 = Buffer.from(content).toString('base64');\n  execSync('echo ' + b64 + ' | base64 -d > ' + concatPath, { shell: '/bin/sh', timeout: 10000 });\n  var lineCount = execSync('wc -l < ' + concatPath, { shell: '/bin/sh' }).toString().trim();\n  console.log('concat.txt generated with ' + lineCount + ' lines');\n  if (parseInt(lineCount) === 0) {\n    return [{ json: { ...item, stdout: 'CONCAT_FAILED: concat.txt is empty', assembly_mode: 'error' } }];\n  }\n} catch (e) {\n  return [{ json: { ...item, stdout: 'CONCAT_FAILED: ' + e.message, assembly_mode: 'error' } }];\n}\n\n// =============================================\n// STEP 2: PRE-CONCAT VALIDATION \u2014 check every clip\n// =============================================\nconsole.log('Validating clip specs (fps, sample_rate, codec)...');\nvar mismatched = [];\nvar expectedDurationSum = 0;\ntry {\n  for (var i = 1; i <= totalScenes; i++) {\n    var pad = String(i).padStart(3, '0');\n    var clipPath = baseDir + '/clips/scene_' + pad + '.mp4';\n    // Get fps, sample_rate, video codec, audio codec in one ffprobe call\n    var probeCmd = 'ffprobe -v quiet -select_streams v:0 -show_entries stream=r_frame_rate,codec_name -of csv=p=0 \"' + clipPath + '\" 2>/dev/null && ffprobe -v quiet -select_streams a:0 -show_entries stream=sample_rate,codec_name -of csv=p=0 \"' + clipPath + '\" 2>/dev/null && ffprobe -v quiet -select_streams v:0 -show_entries stream=duration -of csv=p=0 \"' + clipPath + '\" 2>/dev/null';\n    var probeOut = execSync(probeCmd, { shell: '/bin/sh', timeout: 10000 }).toString().trim().split('\\n');\n    // probeOut[0] = \"h264,30/1\", probeOut[1] = \"aac,24000\", probeOut[2] = duration\n    var vInfo = (probeOut[0] || '').split(',');\n    var aInfo = (probeOut[1] || '').split(',');\n    var clipDur = parseFloat(probeOut[2] || '0');\n    expectedDurationSum += clipDur;\n    var vCodec = vInfo[0] || 'unknown';\n    var fps = vInfo[1] || 'unknown';\n    var aCodec = aInfo[0] || 'unknown';\n    var sr = aInfo[1] || 'unknown';\n    if (fps !== TARGET_FPS || sr !== TARGET_SR) {\n      mismatched.push({ scene: i, pad: pad, fps: fps, sr: sr, vCodec: vCodec, aCodec: aCodec, path: clipPath });\n    }\n  }\n  console.log('Validation complete. Expected total duration: ' + expectedDurationSum.toFixed(1) + 's');\n} catch (e) {\n  console.log('WARNING: Validation probe failed: ' + e.message + '. Continuing with concat...');\n}\n\n// =============================================\n// STEP 3: AUTO-FIX mismatched clips\n// =============================================\nif (mismatched.length > 0) {\n  console.log('Found ' + mismatched.length + ' mismatched clips. Re-encoding to 30fps/24kHz...');\n  var fixFailed = 0;\n  for (var m = 0; m < mismatched.length; m++) {\n    var mc = mismatched[m];\n    console.log('  Fixing scene_' + mc.pad + ' (fps=' + mc.fps + ' sr=' + mc.sr + ')');\n    var fixedPath = mc.path.replace('.mp4', '_fixed.mp4');\n    var fixCmd = 'ffmpeg -y -i \"' + mc.path + '\" -r 30 -c:v libx264 -preset fast -pix_fmt yuvj420p -c:a aac -ar 24000 -ac 1 -b:a 128k -movflags +faststart \"' + fixedPath + '\" 2>/dev/null && mv \"' + fixedPath + '\" \"' + mc.path + '\"';\n    try {\n      execSync(fixCmd, { shell: '/bin/sh', timeout: 120000 });\n      console.log('  \u2713 scene_' + mc.pad + ' fixed');\n    } catch (e2) {\n      console.log('  \u2717 scene_' + mc.pad + ' fix FAILED: ' + e2.message);\n      fixFailed++;\n    }\n  }\n  if (fixFailed > 0) {\n    console.log('WARNING: ' + fixFailed + ' clips could not be fixed. Concat may produce broken output.');\n  } else {\n    console.log('All ' + mismatched.length + ' mismatched clips fixed successfully.');\n  }\n} else {\n  console.log('All ' + totalScenes + ' clips have matching specs. No re-encoding needed.');\n}\n\n// =============================================\n// STEP 4: Run ffmpeg concat\n// =============================================\nvar outputPath = baseDir + '/raw_final.mp4';\nvar ffcmd = 'ffmpeg -y -f concat -safe 0 -i ' + concatPath + ' -c:v copy -c:a aac -ar 48000 -ac 1 -b:a 128k -movflags +faststart ' + outputPath + ' 2>&1 && echo \"CONCAT_SUCCESS\" || echo \"CONCAT_FAILED\"';\nconsole.log('Running ffmpeg concat...');\nvar stdout = '';\ntry {\n  stdout = execSync(ffcmd, { shell: '/bin/sh', maxBuffer: 50 * 1024 * 1024, timeout: 1800000 }).toString().trim();\n  console.log('Concat result: ' + stdout.slice(-200));\n} catch (e) {\n  stdout = 'CONCAT_FAILED: ' + e.message;\n  return [{ json: { ...item, stdout: stdout, assembly_mode: 'concat' } }];\n}\n\n// =============================================\n// STEP 5: POST-CONCAT DURATION VERIFICATION\n// =============================================\nif (stdout.indexOf('CONCAT_SUCCESS') !== -1 && expectedDurationSum > 0) {\n  try {\n    var vDur = parseFloat(execSync('ffprobe -v quiet -select_streams v:0 -show_entries stream=duration -of csv=p=0 \"' + outputPath + '\" 2>/dev/null', { shell: '/bin/sh', timeout: 10000 }).toString().trim());\n    var aDur = parseFloat(execSync('ffprobe -v quiet -select_streams a:0 -show_entries stream=duration -of csv=p=0 \"' + outputPath + '\" 2>/dev/null', { shell: '/bin/sh', timeout: 10000 }).toString().trim());\n    var vPct = (vDur / expectedDurationSum * 100).toFixed(1);\n    var vaDiff = Math.abs(vDur - aDur).toFixed(1);\n    console.log('POST-CONCAT CHECK: video=' + vDur.toFixed(1) + 's audio=' + aDur.toFixed(1) + 's expected=' + expectedDurationSum.toFixed(1) + 's (' + vPct + '%)');\n    console.log('  Video/Audio drift: ' + vaDiff + 's');\n    if (parseFloat(vPct) < 95) {\n      stdout += '\\nWARNING: Output is only ' + vPct + '% of expected duration. Video may be truncated!';\n      console.log('  \u26a0 DURATION MISMATCH \u2014 output is only ' + vPct + '% of expected. Possible truncation.');\n    }\n    if (parseFloat(vaDiff) > 5) {\n      stdout += '\\nWARNING: Video/Audio drift is ' + vaDiff + 's. Streams may be desynchronized!';\n      console.log('  \u26a0 V/A DRIFT \u2014 ' + vaDiff + 's difference between video and audio streams.');\n    }\n  } catch (e3) {\n    console.log('POST-CONCAT CHECK: probe failed \u2014 ' + e3.message);\n  }\n}\n\nreturn [{ json: { ...item, stdout: stdout, assembly_mode: 'concat', mismatched_clips_fixed: mismatched.length, expected_duration: expectedDurationSum } }];",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "if-concat-success",
+      "name": "If Concat Success",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2944,
+        784
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-concat-success",
+              "leftValue": "={{ $json.stdout }}",
+              "rightValue": "CONCAT_SUCCESS",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "normalize-audio",
+      "name": "Normalize Audio",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3168,
+        592
+      ],
+      "parameters": {
+        "jsCode": "const { execSync } = require('child_process');\nconst item = $input.first().json;\nconst topicId = item.video_id;\nconst topicTitle = item.topic_title.replace(/[^a-zA-Z0-9_-]/g, '_');\nconst inputPath = '/tmp/operscale-production/' + topicId + '/raw_final.mp4';\nconst outputDir = '/tmp/operscale-production/' + topicId + '/final';\nconst outputPath = outputDir + '/' + topicTitle + '.mp4';\n\n// Ensure final/ directory exists\ntry {\n  execSync('mkdir -p \"' + outputDir + '\"', { shell: '/bin/sh', timeout: 5000 });\n} catch(e) {}\n\n// Audio-only normalize - caption burn happens OUTSIDE n8n (host-side service)\nconst cmd = 'ffmpeg -y -i \"' + inputPath + '\" -af \"loudnorm=I=-16:TP=-1.5:LRA=11\" -c:v copy -c:a aac -ar 48000 -ac 1 -b:a 128k -movflags +faststart \"' + outputPath + '\" 2>&1 && echo \"NORMALIZE_SUCCESS\" || echo \"NORMALIZE_FAILED\"';\n\nconsole.log('Audio-only normalize (captions burn via host service post-upload)...');\n\nlet stdout = '';\ntry {\n  stdout = execSync(cmd, { shell: '/bin/sh', maxBuffer: 50 * 1024 * 1024, timeout: 600000 }).toString().trim();\n  console.log('Result:', stdout.slice(-100));\n\n  // POST-NORMALIZE VERIFICATION\n  if (stdout.indexOf('NORMALIZE_SUCCESS') !== -1) {\n    try {\n      var vDur = parseFloat(execSync('ffprobe -v quiet -select_streams v:0 -show_entries stream=duration -of csv=p=0 \"' + outputPath + '\" 2>/dev/null', { shell: '/bin/sh', timeout: 10000 }).toString().trim());\n      var aDur = parseFloat(execSync('ffprobe -v quiet -select_streams a:0 -show_entries stream=duration -of csv=p=0 \"' + outputPath + '\" 2>/dev/null', { shell: '/bin/sh', timeout: 10000 }).toString().trim());\n      var drift = Math.abs(vDur - aDur);\n      console.log('POST-NORMALIZE: video=' + vDur.toFixed(1) + 's audio=' + aDur.toFixed(1) + 's drift=' + drift.toFixed(1) + 's');\n      if (drift > 10) {\n        stdout += '\\nWARNING: V/A drift is ' + drift.toFixed(1) + 's after normalize!';\n      }\n    } catch(e2) {\n      console.log('POST-NORMALIZE probe failed: ' + e2.message);\n    }\n  }\n} catch(e) {\n  stdout = 'NORMALIZE_FAILED: ' + e.message;\n  console.error('Error:', stdout);\n}\nreturn [{ json: { ...item, stdout, output_path: outputPath } }];"
+      }
+    },
+    {
+      "id": "if-normalize-success",
+      "name": "If Normalize Success",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        3392,
+        592
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-normalize-success",
+              "leftValue": "={{ $json.stdout }}",
+              "rightValue": "NORMALIZE_SUCCESS",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "update-topic-assembled",
+      "name": "Update Topic Assembled",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4064,
+        592
+      ],
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/videos",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "=eq.{{ $('Generate Concat List').item.json.video_id || $('Webhook Trigger').item.json.body.video_id }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_ANON_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'assembled', assembly_status: 'complete', drive_video_url: $('Upload Video to Drive').item.json.webViewLink || $('Upload Video to Drive').item.json.webContentLink || ('https://drive.google.com/file/d/' + ($('Upload Video to Drive').item.json.id || '')), last_status_change: new Date().toISOString() }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "log-assembly-complete",
+      "name": "Log Assembly Complete",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4288,
+        592
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/production_log",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_ANON_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ order_id: $('Generate Concat List').item.json.order_id, video_id: $('Generate Concat List').item.json.video_id, stage: 'assembly', action: 'completed', details: { scene_count: $('Generate Concat List').item.json.total_scenes, clips_in_concat: $('Generate Concat List').item.json.clips_in_concat, skipped_count: $('Generate Concat List').item.json.skipped_count } }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "check-queue-next",
+      "name": "Check Queue Next",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4512,
+        592
+      ],
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/videos",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "order_id",
+              "value": "=eq.{{ $('Generate Concat List').item.json.order_id }}"
+            },
+            {
+              "name": "status",
+              "value": "=eq.queued"
+            },
+            {
+              "name": "order",
+              "value": "topic_number.asc"
+            },
+            {
+              "name": "limit",
+              "value": "1"
+            },
+            {
+              "name": "select",
+              "value": "id,topic_number,seo_title"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_ANON_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "if-has-queued",
+      "name": "If Has Queued Topic",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        4736,
+        592
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-has-queued",
+              "leftValue": "={{ $json.length }}",
+              "rightValue": "0",
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "fire-next-topic",
+      "name": "Fire Next Topic",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4960,
+        592
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_WEBHOOK_BASE }}/production/trigger",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.DASHBOARD_API_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ video_id: $('Check Queue Next').item.json[0].id }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "cleanup-temp",
+      "name": "Cleanup Temp Files",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5184,
+        592
+      ],
+      "parameters": {
+        "jsCode": "// Clean up temporary production files\nconst { execSync } = require('child_process');\nconst data = $('Generate Concat List').first().json;\n\ntry {\n  execSync(`rm -rf \"/tmp/operscale-production/${data.video_id}/\" 2>/dev/null`);\n} catch(e) {\n  // Ignore cleanup errors\n}\n\nreturn [{ json: { ...data, cleanup_done: true } }];"
+      }
+    },
+    {
+      "id": "mark-assembly-failed-concat",
+      "name": "Mark Assembly Failed (Concat)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3168,
+        880
+      ],
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/videos",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "=eq.{{ $('Generate Concat List').item.json.video_id }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_ANON_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'failed', assembly_status: 'failed', error_log: 'Concat failed: ' + ($json.stderr || $json.stdout || 'Unknown error'), last_status_change: new Date().toISOString() }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "log-concat-failure",
+      "name": "Log Concat Failure",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3392,
+        880
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/production_log",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_ANON_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ order_id: $('Generate Concat List').item.json.order_id, video_id: $('Generate Concat List').item.json.video_id, stage: 'assembly', action: 'failed', details: { step: 'concat', error: $json.stderr || $json.stdout || 'Unknown' } }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "mark-assembly-failed-normalize",
+      "name": "Mark Assembly Failed (Normalize)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3616,
+        880
+      ],
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/videos",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "=eq.{{ $('Generate Concat List').item.json.video_id }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_ANON_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'failed', assembly_status: 'failed', error_log: 'Normalization failed: ' + ($json.stderr || $json.stdout || 'Unknown error'), last_status_change: new Date().toISOString() }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "log-normalize-failure",
+      "name": "Log Normalize Failure",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3840,
+        880
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/production_log",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_ANON_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ order_id: $('Generate Concat List').item.json.order_id, video_id: $('Generate Concat List').item.json.video_id, stage: 'assembly', action: 'failed', details: { step: 'normalization', error: $json.stderr || $json.stdout || 'Unknown' } }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "e7701aae-fd99-49f8-a1bf-03628383f900",
+      "name": "Download Audio from Drive",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2920,
+        88
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "=https://www.googleapis.com/drive/v3/files/{{ $json.audio_file_drive_id }}?alt=media",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "sendHeaders": false,
+        "sendQuery": false,
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "z0gigNHVnhcGz2pD",
+          "name": "GoogleDriveAccount"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "60bb0cc0-9ab7-4003-b918-300986f038c5",
+      "name": "Save Audio to Disk",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3120,
+        88
+      ],
+      "parameters": {
+        "jsCode": "// Save Google Drive audio binary to disk\n// Binary stored as filesystem-v2 ref \u2014 locate and copy via execSync (child_process works in INSECURE_MODE)\nconst { execSync } = require('child_process');\nconst scene = $('Prepare Downloads').first().json;\nconst topicId = scene.video_id;\nconst padded = scene.padded_num;\nconst audioPath = `/tmp/operscale-production/${topicId}/audio/scene_${padded}.mp3`;\n\nconst items = $input.all();\nconst binaryField = Object.keys(items[0].binary || {})[0];\n\nif (!binaryField) {\n  return [{ json: { ...scene, audio_downloaded: false, error: 'no_binary_field' } }];\n}\n\nconst meta = items[0].binary[binaryField];\nlet saved = false;\n\n// Approach 1: filesystem-v2 binary ID \u2192 locate file on disk \u2192 cp\nconst binaryId = meta.id || '';\nconst relPath = binaryId.replace(/^filesystem-v2:/, '');\n\nif (relPath) {\n  // Try known n8n binary data directories\n  const bases = [\n    '/home/node/.n8n/binaryData/',\n    '/home/node/.n8n/',\n    '/data/binaryData/',\n    '/data/',\n    ''\n  ];\n  for (const base of bases) {\n    try {\n      const src = base + relPath;\n      execSync(`test -f '${src}' && cp '${src}' '${audioPath}'`, { timeout: 5000 });\n      saved = true;\n      break;\n    } catch(e) { /* try next */ }\n  }\n\n  // Fallback: find by UUID (last segment of path)\n  if (!saved) {\n    const uuid = relPath.split('/').pop();\n    if (uuid && uuid.length > 8) {\n      try {\n        const found = execSync(\n          `find /home/node/.n8n /data -maxdepth 6 -name '${uuid}' -type f 2>/dev/null | head -1`,\n          { encoding: 'utf8', timeout: 15000 }\n        ).trim();\n        if (found) {\n          execSync(`cp '${found}' '${audioPath}'`);\n          saved = true;\n        }\n      } catch(e) {}\n    }\n  }\n}\n\n// Approach 2: .data might have base64 content (non-filesystem-v2 mode)\nif (!saved && meta.data && typeof meta.data === 'string' && meta.data.length > 200) {\n  try {\n    execSync(`base64 -d > '${audioPath}'`, {\n      input: meta.data,\n      maxBuffer: 50 * 1024 * 1024\n    });\n    saved = true;\n  } catch(e) {}\n}\n\n// Approach 3: Try require('fs') to read and list directory for diagnostics\nif (!saved) {\n  let diagInfo = 'id=' + binaryId;\n  try {\n    const fsMod = require('fs');\n    diagInfo += ', fs=available';\n    // List what's in the n8n data dir\n    const n8nDir = '/home/node/.n8n';\n    if (fsMod.existsSync(n8nDir)) {\n      diagInfo += ', n8nDir=' + fsMod.readdirSync(n8nDir).join('|');\n      const bdDir = n8nDir + '/binaryData';\n      if (fsMod.existsSync(bdDir)) {\n        diagInfo += ', binaryData=' + fsMod.readdirSync(bdDir).slice(0, 5).join('|');\n      }\n    }\n  } catch(e) {\n    diagInfo += ', fs=unavailable(' + e.message.substring(0, 50) + ')';\n  }\n  diagInfo += ', dataType=' + typeof meta.data;\n  diagInfo += ', dataLen=' + (meta.data ? String(meta.data).length : 0);\n  diagInfo += ', keys=' + Object.keys(meta).join(',');\n  throw new Error('Cannot save audio. ' + diagInfo);\n}\n\nreturn [{ json: { ...scene, audio_downloaded: true } }];"
+      }
+    },
+    {
+      "id": "273625b9-48a6-4a5d-a6b7-4ace93718e3c",
+      "name": "Upload Video to Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        2800,
+        400
+      ],
+      "parameters": {
+        "name": "={{ $('Webhook Trigger').item.json.body.file_name || ($('Generate Concat List').isExecuted ? $('Generate Concat List').item.json.topic_title + '.mp4' : 'video.mp4') }}",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive",
+          "cachedResultName": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Webhook Trigger').item.json.body.folder_id || ($('Generate Concat List').isExecuted ? ($('Generate Concat List').item.json.drive_subfolder_ids?.final || $('Generate Concat List').item.json.drive_folder_id) : '') }}",
+          "cachedResultName": "/ (Root folder)"
+        },
+        "options": {
+          "appPropertiesUi": {
+            "appPropertyValues": []
+          },
+          "mimeType": "video/mp4"
+        }
+      },
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "z0gigNHVnhcGz2pD",
+          "name": "GoogleDriveAccount"
+        }
+      }
+    },
+    {
+      "id": "627afaaa-9820-4f19-9e55-9996aa8532f0",
+      "name": "HTTP Download Video",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2600,
+        500
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "=http://172.18.0.1:9999/{{ $('Webhook Trigger').item.json.body.file_path || $('Normalize Audio').first().json.output_path.replace('/tmp/operscale-production/', '') }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "data"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "9bf9282d-047d-417b-a3ec-0b241df9f3fb",
+      "name": "HTTP Download SRT",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3000,
+        500
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "=http://172.18.0.1:9999/{{ $('Generate Concat List').first().json.srt_path.replace('/tmp/operscale-production/', '') }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "data"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "fix-mime-type",
+      "name": "Fix Video MIME Type",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2200,
+        400
+      ],
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://www.googleapis.com/drive/v3/files/{{ $('Upload Video to Drive').item.json.id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"mimeType\": \"video/mp4\"}"
+      },
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "z0gigNHVnhcGz2pD",
+          "name": "GoogleDriveAccount"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "check-upload-only",
+      "name": "Check Upload Only",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        700,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "upload-only-check",
+              "leftValue": "={{ $('Webhook Trigger').item.json.body.upload_only }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "3ed777d0-dc50-4609-9d3c-68430159c8b0",
+      "name": "Trigger Thumbnail Generation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4512,
+        400
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_WEBHOOK_BASE }}/thumbnail/generate",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.DASHBOARD_API_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ video_id: $('Webhook Trigger').first().json.body.video_id }) }}",
+        "options": {
+          "timeout": 10000
+        }
+      }
+    },
+    {
+      "id": "23a78dac-42b3-4966-be2d-df9bee582599",
+      "name": "Trigger Video Metadata",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4512,
+        200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_WEBHOOK_BASE }}/metadata/generate",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.DASHBOARD_API_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ video_id: $('Webhook Trigger').first().json.body.video_id }) }}",
+        "options": {
+          "timeout": 10000
+        }
+      }
+    },
+    {
+      "id": "7033b754-c296-47da-87cd-42986c0eb678",
+      "name": "Trigger Caption Burn",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3200,
+        800
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://172.18.0.1:9998/burn",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"video_id\": \"{{ $json.video_id }}\",\n  \"srt_filename\": \"{{ ($json.topic_title || 'video').replace(/[^a-zA-Z0-9_-]/g, '_') }}.srt\",\n  \"video_filename\": \"{{ ($json.topic_title || 'video').replace(/[^a-zA-Z0-9_-]/g, '_') }}.mp4\",\n  \"drive_folder_id\": \"{{ $json.drive_subfolder_ids?.final || $json.drive_folder_id || '' }}\"\n,\n  \"production_register\": \"{{ $('Load Topic').first().json.production_register || \"\" }}\"\n}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "id": "chain-SXjUhRdh",
+      "name": "Trigger WF_PREDICT_PERFORMANCE",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [
+        4538,
+        672
+      ],
+      "parameters": {
+        "workflowId": "SXjUhRdhp8BHvybF"
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Check Auth Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Auth Token": {
+      "main": [
+        [
+          {
+            "node": "Respond Assembly Accepted",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Unauthorized",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond Assembly Accepted": {
+      "main": [
+        [
+          {
+            "node": "Check Upload Only",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Status Assembling": {
+      "main": [
+        [
+          {
+            "node": "Load All Scenes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Topic": {
+      "main": [
+        [
+          {
+            "node": "Log Assembly Started",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Assembly Started": {
+      "main": [
+        [
+          {
+            "node": "Generate SRT and Prepare",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate SRT and Prepare": {
+      "main": [
+        [
+          {
+            "node": "Write SRT File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write SRT File": {
+      "main": [
+        [
+          {
+            "node": "Expand Scene List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Expand Scene List": {
+      "main": [
+        [
+          {
+            "node": "Loop Scene Clips",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Scene Clips": {
+      "main": [
+        [
+          {
+            "node": "Generate Concat List",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Determine FFmpeg Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Determine FFmpeg Command": {
+      "main": [
+        [
+          {
+            "node": "Prepare Downloads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Downloads": {
+      "main": [
+        [
+          {
+            "node": "Download Audio from Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Assets": {
+      "main": [
+        [
+          {
+            "node": "Build Scene Clip",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Scene Clip": {
+      "main": [
+        [
+          {
+            "node": "If Clip Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Clip Success": {
+      "main": [
+        [
+          {
+            "node": "Mark Clip Complete",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Clip Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Clip Complete": {
+      "main": [
+        [
+          {
+            "node": "Track Clip Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Clip Failed": {
+      "main": [
+        [
+          {
+            "node": "Track Clip Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Track Clip Success": {
+      "main": [
+        [
+          {
+            "node": "Continue Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Track Clip Failure": {
+      "main": [
+        [
+          {
+            "node": "Continue Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Continue Loop": {
+      "main": [
+        [
+          {
+            "node": "Loop Scene Clips",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Concat List": {
+      "main": [
+        [
+          {
+            "node": "Concat Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Concat Video": {
+      "main": [
+        [
+          {
+            "node": "If Concat Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Concat Success": {
+      "main": [
+        [
+          {
+            "node": "Normalize Audio",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Assembly Failed (Concat)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Assembly Failed (Concat)": {
+      "main": [
+        [
+          {
+            "node": "Log Concat Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Audio": {
+      "main": [
+        [
+          {
+            "node": "If Normalize Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Normalize Success": {
+      "main": [
+        [
+          {
+            "node": "HTTP Download Video",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Assembly Failed (Normalize)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Assembly Failed (Normalize)": {
+      "main": [
+        [
+          {
+            "node": "Log Normalize Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Topic Assembled": {
+      "main": [
+        [
+          {
+            "node": "Log Assembly Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Assembly Complete": {
+      "main": [
+        [
+          {
+            "node": "Check Queue Next",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Trigger Thumbnail Generation",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Trigger Video Metadata",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Trigger Caption Burn",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Trigger WF_PREDICT_PERFORMANCE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Queue Next": {
+      "main": [
+        [
+          {
+            "node": "If Has Queued Topic",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Has Queued Topic": {
+      "main": [
+        [
+          {
+            "node": "Fire Next Topic",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Cleanup Temp Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fire Next Topic": {
+      "main": [
+        [
+          {
+            "node": "Cleanup Temp Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load All Scenes": {
+      "main": [
+        [
+          {
+            "node": "Load Topic",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Audio from Drive": {
+      "main": [
+        [
+          {
+            "node": "Save Audio to Disk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Audio to Disk": {
+      "main": [
+        [
+          {
+            "node": "Download Assets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Download Video": {
+      "main": [
+        [
+          {
+            "node": "Upload Video to Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Video to Drive": {
+      "main": [
+        [
+          {
+            "node": "HTTP Download SRT",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Assembly Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fix Video MIME Type": {
+      "main": [
+        [
+          {
+            "node": "Update Topic Assembled",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Upload Only": {
+      "main": [
+        [
+          {
+            "node": "HTTP Download Video",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Status Assembling",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "active": true
+}

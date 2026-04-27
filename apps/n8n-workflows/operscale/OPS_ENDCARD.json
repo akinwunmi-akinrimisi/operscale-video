@@ -1,0 +1,104 @@
+{
+  "updatedAt": "2026-03-28T18:04:30.160Z",
+  "createdAt": "2026-03-28T18:04:30.160Z",
+  "id": "yDBpi4LNH5aOEGSu",
+  "name": "OPS_ENDCARD",
+  "description": null,
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "id": "trigger-1",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "code-1",
+      "name": "Generate End Card",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Generate end card: dark bg + subscribe CTA\n// Short-form: 3s, Long-form: 5-8s\nconst { execSync } = require('child_process');\nconst input = $input.first().json;\nconst topicId = input.video_id;\nconst isShort = input.short_form || false;\nconst duration = isShort ? 3 : 6;\nconst outputPath = `/tmp/operscale-production/endcard_${topicId}.mp4`;\n\n// Create dark background end card with fade\n// Uses a solid dark frame with subscribe text\ntry {\n  const cmd = `ffmpeg -y -f lavfi -i \"color=c=0x0A0A1A:s=${isShort ? '1080x1920' : '1920x1080'}:d=${duration}\" ` +\n    `-vf \"drawtext=text='Subscribe for more':fontsize=48:fontcolor=white:x=(w-tw)/2:y=(h-th)/2-40,` +\n    `drawtext=text='Like & Share':fontsize=32:fontcolor=0xFBBF24:x=(w-tw)/2:y=(h-th)/2+30,` +\n    `fade=in:st=0:d=0.5,fade=out:st=${duration - 0.5}:d=0.5\" ` +\n    `-c:v libx264 -pix_fmt yuv420p -preset medium -crf 18 \"${outputPath}\"`;\n  execSync(cmd, { timeout: 30000 });\n} catch (e) {\n  return [{ json: { success: false, error: 'End card generation failed: ' + e.message, video_id: topicId } }];\n}\n\nreturn [{ json: {\n  success: true,\n  video_id: topicId,\n  endcard_path: outputPath,\n  duration: duration,\n  is_short_form: isShort,\n} }];"
+      }
+    },
+    {
+      "id": "noop-1",
+      "name": "Return End Card",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        720,
+        300
+      ],
+      "parameters": {}
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Generate End Card",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate End Card": {
+      "main": [
+        [
+          {
+            "node": "Return End Card",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": null,
+  "versionId": "e417637c-d13f-4fde-88c4-c946f69256e7",
+  "activeVersionId": null,
+  "versionCounter": 1,
+  "triggerCount": 0,
+  "shared": [
+    {
+      "updatedAt": "2026-03-28T18:04:30.162Z",
+      "createdAt": "2026-03-28T18:04:30.162Z",
+      "role": "workflow:owner",
+      "workflowId": "yDBpi4LNH5aOEGSu",
+      "projectId": "ccWn1Q4giuKzXIbJ",
+      "project": {
+        "updatedAt": "2026-01-26T11:09:31.107Z",
+        "createdAt": "2026-01-26T03:51:33.410Z",
+        "id": "ccWn1Q4giuKzXIbJ",
+        "name": "Akinwunmi Akinrimisi <akinolacrypto@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "ab010feb-355c-4130-b354-4e929908258e"
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": null
+}

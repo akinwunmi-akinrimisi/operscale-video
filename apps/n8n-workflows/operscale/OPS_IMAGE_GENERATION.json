@@ -1,0 +1,713 @@
+{
+  "name": "OPS_IMAGE_GENERATION",
+  "nodes": [
+    {
+      "id": "webhook-images-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        256,
+        264
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "production/images",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        },
+        "authentication": "headerAuth"
+      },
+      "webhookId": "production-images-webhook",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "KtMyWD7uJJBZYLjt",
+          "name": "Authorization"
+        }
+      }
+    },
+    {
+      "id": "if-auth-images",
+      "name": "Check Auth Token",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        480,
+        264
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "auth-check-images",
+              "leftValue": "={{ $json.headers.authorization }}",
+              "rightValue": "=Bearer {{ $env.DASHBOARD_API_TOKEN }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "respond-unauthorized-images",
+      "name": "Respond Unauthorized",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        704,
+        360
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, data: null, error: 'Unauthorized' }) }}",
+        "options": {
+          "responseCode": 401
+        }
+      }
+    },
+    {
+      "id": "respond-images-accepted",
+      "name": "Respond Accepted",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        704,
+        168
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, data: { video_id: $('Webhook Trigger').item.json.body.video_id, message: 'Image generation workflow started' }, error: null }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "if-has-scenes",
+      "name": "If Has Scenes",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2048,
+        72
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-has-scenes",
+              "leftValue": "={{ $json.skip_processing }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "log-images-completed",
+      "name": "Log Images Completed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3392,
+        72
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/production_log",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_ANON_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ order_id: $json.order_id, video_id: $json.video_id, stage: 'images', action: $json.stopped ? 'stopped' : 'completed', details: { completed: $json.completed, failed: $json.failed, total_cost: $json.total_cost } }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "if-assembly-claimed",
+      "name": "If Assembly Claimed",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        3840,
+        168
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-assembly-claimed",
+              "leftValue": "={{ $json.assembly_claimed }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "fire-assembly",
+      "name": "Fire Assembly Webhook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4064,
+        72
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/operscale/production/ken-burns",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.DASHBOARD_API_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ video_id: $json.video_id, order_id: $json.order_id }) }}",
+        "options": {
+          "allowUnauthorizedCerts": false,
+          "timeout": 10000
+        }
+      }
+    },
+    {
+      "id": "exit-no-assembly",
+      "name": "Exit No Assembly",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4064,
+        264
+      ],
+      "parameters": {
+        "jsCode": "// No-op: assembly not claimed by this workflow (another visual workflow will fire it)\nreturn [{ json: { message: 'Image generation complete. Assembly claimed by another workflow or not yet ready.', ...$input.first().json } }];"
+      }
+    },
+    {
+      "id": "skip-to-sync",
+      "name": "Skip To Sync",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2944,
+        288
+      ],
+      "parameters": {
+        "jsCode": "// No scenes to process - go directly to completion sync\nreturn [{ json: { video_id: $input.first().json.video_id, order_id: null, completed: 0, failed: 0, total_cost: 0, stopped: false } }];"
+      }
+    },
+    {
+      "id": "fire-all-scenes",
+      "name": "Fire All Scenes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2272,
+        -24
+      ],
+      "parameters": {
+        "jsCode": "// Fire sub-workflow for each scene \u2014 2 at a time, 10s between batches\n// Avoids Fal.ai 429 rate limits\n// Now uses 3-part cinematic prompt: composition_prefix + image_prompt + style_dna\nconst { execFileSync, execSync } = require('child_process');\n\nconst data = $input.first().json;\nconst scenes = data.scenes || [];\nconst topicId = data.video_id;\nconst projectId = data.order_id;\nconst styleDna = data.style_dna || '';\nconst registerAnchors = data.register_anchors || '';\nconst registerNegativeAdditions = data.register_negative_additions || '';\nconst registerId = data.register_id || '';\nconst webhookUrl = 'http://localhost:5678/webhook/operscale/process-scene/image';\nconst token = $env.DASHBOARD_API_TOKEN;\n\n// Universal negative prompt (prevents artifacts, text, style drift)\nconst NEGATIVE_PROMPT = 'text, watermark, signature, logo, UI elements, blurry, low quality, distorted faces, extra fingers, mutated hands, bad anatomy, deformed, disfigured, out of frame, cropped, duplicate, error, jpeg artifacts, low resolution, cartoon, anime, painting, illustration, 3D render, CGI';\n\nconst BATCH_SIZE = 2;\nconst BATCH_DELAY_SEC = 10;\nlet fired = 0;\n\nfor (let i = 0; i < scenes.length; i += BATCH_SIZE) {\n  const batch = scenes.slice(i, i + BATCH_SIZE);\n\n  for (const scene of batch) {\n    // Build 3-part cinematic prompt\n    const prefix = scene.composition_prefix || '';\n    const subject = scene.image_prompt || '';\n    const parts = [prefix, subject, registerAnchors, styleDna].filter(Boolean);\n    const fullPrompt = parts.join(' ');\n\n    try {\n      execFileSync('curl', [\n        '-s', '-o', '/dev/null',\n        '-X', 'POST', webhookUrl,\n        '-H', 'Content-Type: application/json',\n        '-H', 'Authorization: Bearer ' + token,\n        '-d', JSON.stringify({\n          scene_id: scene.id,\n          image_prompt: fullPrompt,\n          negative_prompt: registerNegativeAdditions ? (NEGATIVE_PROMPT + ', ' + registerNegativeAdditions) : NEGATIVE_PROMPT,\n          video_id: topicId,\n          order_id: projectId\n        }),\n        '--connect-timeout', '3',\n        '--max-time', '5'\n      ]);\n      fired++;\n    } catch (e) { /* fire-and-forget */ }\n  }\n\n  // Wait between batches (skip wait after last batch)\n  if (i + BATCH_SIZE < scenes.length) {\n    execSync('sleep ' + BATCH_DELAY_SEC);\n  }\n}\n\nreturn [{ json: { video_id: topicId, order_id: projectId, fired, total: scenes.length, batch_size: BATCH_SIZE, delay_sec: BATCH_DELAY_SEC, has_style_dna: !!styleDna, register_id: registerId, has_register_anchors: !!registerAnchors } }];"
+      }
+    },
+    {
+      "id": "wait-for-processing",
+      "name": "Wait for Processing",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2496,
+        -24
+      ],
+      "parameters": {},
+      "webhookId": "0fac6d1e-2377-438a-b956-c9fab46baaf3"
+    },
+    {
+      "id": "if-all-done",
+      "name": "If All Done",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2944,
+        -24
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-done",
+              "leftValue": "={{ $json.pending_count }}",
+              "rightValue": "0",
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "load-topic-for-classification",
+      "name": "Load Topic",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        928,
+        168
+      ],
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/videos",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "=eq.{{ $(\"Webhook Trigger\").item.json.body.video_id }}"
+            },
+            {
+              "name": "select",
+              "value": "id,order_id,pipeline_stage"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_ANON_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "load-falai-scenes",
+      "name": "Load Fal.ai Scenes",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1376,
+        72
+      ],
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/scenes",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "video_id",
+              "value": "=eq.{{ $(\"Webhook Trigger\").item.json.body.video_id }}"
+            },
+            {
+              "name": "image_status",
+              "value": "=eq.pending"
+            },
+            {
+              "name": "order",
+              "value": "scene_number.asc"
+            },
+            {
+              "name": "select",
+              "value": "id,video_id,order_id,scene_number,scene_id,image_prompt,visual_type,chapter,composition_prefix"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_ANON_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "log-images-started",
+      "name": "Log Images Started",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1600,
+        168
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/production_log",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_ANON_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ order_id: $(\"Load Topic\").item.json.order_id, video_id: $(\"Webhook Trigger\").item.json.body.video_id, stage: \"images\", action: \"started\", details: { model: \"fal_ai_seedream_4\" } }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "prepare-image-data",
+      "name": "Prepare Image Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1824,
+        72
+      ],
+      "parameters": {
+        "jsCode": "// Prepare scene data for sliding window processing + fetch style_dna\n// Single visual pipeline: all scenes use Fal.ai Seedream 4.0 + FFmpeg Ken Burns.\nconst scenes = $(\"Load Fal.ai Scenes\").all().map(i => i.json);\nconst topicId = $(\"Webhook Trigger\").item.json.body.video_id;\nconst projectId = $(\"Load Topic\").item.json.order_id;\n\n// Flatten if Supabase returned array-in-item\nlet sceneList = scenes;\nif (sceneList.length === 1 && Array.isArray(sceneList[0])) {\n  sceneList = sceneList[0];\n}\n\nif (!Array.isArray(sceneList) || sceneList.length === 0 || (sceneList.length === 1 && !sceneList[0].id)) {\n  return [{\n    json: {\n      scenes: [],\n      video_id: topicId,\n      order_id: projectId,\n      total_scenes: 0,\n      scenes_completed: 0,\n      scenes_failed: 0,\n      total_image_cost: 0,\n      skip_processing: true,\n      style_dna: '',\n    }\n  }];\n}\n\n// Fetch project style_dna\nlet styleDna = '';\ntry {\n  const resp = await this.helpers.httpRequest({\n    method: 'GET',\n    url: `${$env.SUPABASE_URL}/rest/v1/orders?id=eq.${projectId}&select=style_dna`,\n    headers: {\n      'apikey': $env.SUPABASE_ANON_KEY,\n      'Authorization': `Bearer ${$env.SUPABASE_SERVICE_ROLE_KEY}`,\n    },\n  });\n  if (resp && resp[0] && resp[0].style_dna) {\n    styleDna = resp[0].style_dna;\n  }\n} catch (e) {\n  // style_dna is optional - continue without it\n}\n\n// Fetch production_register + era from topic + its config from production_registers\nlet registerId = '';\nlet registerEra = '';\nlet registerAnchors = '';\nlet registerNegativeAdditions = '';\ntry {\n  const topicResp = await this.helpers.httpRequest({\n    method: 'GET',\n    url: `${$env.SUPABASE_URL}/rest/v1/videos?id=eq.${topicId}&select=production_register,register_era_detected,niche_variant`,\n    headers: {\n      'apikey': $env.SUPABASE_ANON_KEY,\n      'Authorization': `Bearer ${$env.SUPABASE_SERVICE_ROLE_KEY}`,\n    },\n  });\n  const parsedTopic = Array.isArray(topicResp) ? topicResp : (typeof topicResp === 'string' ? JSON.parse(topicResp) : topicResp);\n  let nicheVariant = '';\n  if (parsedTopic && parsedTopic[0]) {\n    registerId = parsedTopic[0].production_register || '';\n    registerEra = parsedTopic[0].register_era_detected || '';\n    nicheVariant = parsedTopic[0].niche_variant || '';\n  }\n  if (registerId) {\n    const regResp = await this.helpers.httpRequest({\n      method: 'GET',\n      url: `${$env.SUPABASE_URL}/rest/v1/production_registers?register_id=eq.${registerId}&select=config`,\n      headers: {\n        'apikey': $env.SUPABASE_ANON_KEY,\n        'Authorization': `Bearer ${$env.SUPABASE_SERVICE_ROLE_KEY}`,\n      },\n    });\n    const parsedReg = Array.isArray(regResp) ? regResp : (typeof regResp === 'string' ? JSON.parse(regResp) : regResp);\n    if (parsedReg && parsedReg[0] && parsedReg[0].config) {\n      const cfg = parsedReg[0].config;\n      // 3-branch resolver: era wins -> niche object -> string fallback\n      if (cfg.image_anchors_by_era && registerEra && cfg.image_anchors_by_era[registerEra]) {\n        // Branch 1 - Archive era overlay wins when era is detected\n        registerAnchors = cfg.image_anchors_by_era[registerEra];\n      } else if (typeof cfg.image_anchors === 'object' && cfg.image_anchors !== null) {\n        // Branch 2 - Object-shaped anchors with niche variant\n        const nicheKey = nicheVariant || 'primary';\n        registerAnchors = cfg.image_anchors[nicheKey]\n          || cfg.image_anchors.primary\n          || '';\n      } else {\n        // Branch 3 - Plain string fallback\n        registerAnchors = cfg.image_anchors || '';\n      }\n      registerNegativeAdditions = cfg.negative_additions || '';\n    }\n  }\n} catch (e) {\n  // Register config is optional \u2014 fall back to default prompt if fetch fails\n  console.log('Register config fetch failed (non-fatal): ' + e.message);\n}\n\n\nreturn [{\n  json: {\n    scenes: sceneList,\n    video_id: sceneList[0].video_id || topicId,\n    order_id: projectId,\n    total_scenes: sceneList.length,\n    scenes_completed: 0,\n    scenes_failed: 0,\n    total_image_cost: 0,\n    skip_processing: false,\n    style_dna: styleDna,\n      register_id: registerId,\n    register_era: registerEra,\n    register_anchors: registerAnchors,\n    register_negative_additions: registerNegativeAdditions,\n    niche_variant: nicheVariant,\n}\n}];\n"
+      }
+    },
+    {
+      "id": "check-pending",
+      "name": "Check Pending",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2720,
+        -48
+      ],
+      "parameters": {
+        "jsCode": "// Check how many scenes are still pending\nconst { execFileSync } = require(\"child_process\");\n\nconst topicId = $input.first().json.video_id;\nconst projectId = $input.first().json.order_id;\nconst url = $env.SUPABASE_URL + '/rest/v1/scenes?video_id=eq.' + topicId + '&image_status=eq.pending&select=id';\n\nconst result = execFileSync(\"curl\", [\n  \"-s\", url,\n  \"-H\", \"apikey: \" + $env.SUPABASE_ANON_KEY,\n  \"-H\", \"Authorization: Bearer \" + $env.SUPABASE_SERVICE_ROLE_KEY\n]).toString();\n\nconst pending = JSON.parse(result);\nconst count = Array.isArray(pending) ? pending.length : 0;\n\nreturn [{ json: { pending_count: count, video_id: topicId, order_id: projectId } }];",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "compile-summary",
+      "name": "Compile Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3168,
+        -24
+      ],
+      "parameters": {
+        "jsCode": "// Gather final image generation stats from Supabase\nconst { execFileSync } = require(\"child_process\");\n\nconst topicId = $input.first().json.video_id;\nconst projectId = $input.first().json.order_id;\nconst hdr = [\"-H\", \"apikey: \" + $env.SUPABASE_ANON_KEY, \"-H\", \"Authorization: Bearer \" + $env.SUPABASE_SERVICE_ROLE_KEY];\n\n// Completed scenes (image uploaded)\nconst uploaded = JSON.parse(execFileSync(\"curl\", [\"-s\", $env.SUPABASE_URL + '/rest/v1/scenes?video_id=eq.' + topicId + '&image_status=eq.uploaded&select=id', ...hdr]).toString());\n// Failed\nconst failed = JSON.parse(execFileSync(\"curl\", [\"-s\", $env.SUPABASE_URL + '/rest/v1/scenes?video_id=eq.' + topicId + '&image_status=eq.failed&select=id', ...hdr]).toString());\n\nconst completed = Array.isArray(uploaded) ? uploaded.length : 0;\nconst failedCount = Array.isArray(failed) ? failed.length : 0;\n// Fal.ai Seedream cost: $0.03 per scene\nconst totalCost = completed * 0.03;\n\nexecFileSync(\"curl\", [\"-s\", \"-X\", \"PATCH\", $env.SUPABASE_URL + '/rest/v1/videos?id=eq.' + topicId, ...hdr, \"-H\", \"Content-Type: application/json\", \"-H\", \"Prefer: return=minimal\", \"-d\", JSON.stringify({ images_progress: 'complete' })]).toString();\n\nreturn [{ json: { video_id: topicId, order_id: projectId, completed, failed: failedCount, total_cost: totalCost, stopped: false } }];",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "completion-sync-images",
+      "name": "Parallel Completion Sync",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3616,
+        168
+      ],
+      "parameters": {
+        "jsCode": "// Completion sync: check if ALL scenes have finished image generation.\n// Single visual pipeline: all scenes use Fal.ai Seedream 4.0 \u2192 image_status = 'uploaded'.\n// After all complete, fires Ken Burns.\nconst { execFileSync } = require(\"child_process\");\n\nconst data = $input.first().json;\nconst topicId = data.video_id || $(\"Webhook Trigger\").item.json.body.video_id;\nconst projectId = data.order_id || $(\"Webhook Trigger\").item.json.body.order_id;\nconst hdr = [\"-H\", \"apikey: \" + $env.SUPABASE_ANON_KEY, \"-H\", \"Authorization: Bearer \" + $env.SUPABASE_SERVICE_ROLE_KEY];\n\nconst supaGet = (path) => JSON.parse(execFileSync(\"curl\", [\"-s\", $env.SUPABASE_URL + '/rest/v1/' + path, ...hdr]).toString());\n\nif (data.stopped) {\n  return [{ json: { ...data, video_id: topicId, order_id: projectId, assembly_claimed: false, reason: 'stopped' } }];\n}\n\n// Count completed scenes: image_status=uploaded (all Fal.ai) + any skipped.\nconst uploaded = supaGet('scenes?video_id=eq.' + topicId + '&image_status=eq.uploaded&select=id');\nconst skipped = supaGet('scenes?video_id=eq.' + topicId + '&skipped=eq.true&select=id');\n\nconst completedCount = (Array.isArray(uploaded) ? uploaded.length : 0)\n  + (Array.isArray(skipped) ? skipped.length : 0);\n\nconst totalScenes = supaGet('scenes?video_id=eq.' + topicId + '&select=id');\nconst totalCount = Array.isArray(totalScenes) ? totalScenes.length : 0;\n\nlet assemblyClaimed = false;\nif (completedCount >= totalCount && totalCount > 0) {\n  // Update pipeline_stage to images (completed)\n  execFileSync(\"curl\", [\"-s\", \"-X\", \"PATCH\", $env.SUPABASE_URL + '/rest/v1/videos?id=eq.' + topicId, ...hdr, \"-H\", \"Content-Type: application/json\", \"-H\", \"Prefer: return=minimal\", \"-d\", JSON.stringify({ pipeline_stage: 'images', images_progress: 'complete' })]);\n  assemblyClaimed = true; // Will trigger Ken Burns next\n}\n\nreturn [{ json: { ...data, video_id: topicId, order_id: projectId, completed_visual_scenes: completedCount, total_visual_scenes: totalCount, assembly_claimed: assemblyClaimed } }];\n"
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Check Auth Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Auth Token": {
+      "main": [
+        [
+          {
+            "node": "Respond Accepted",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Unauthorized",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond Accepted": {
+      "main": [
+        [
+          {
+            "node": "Load Topic",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Topic": {
+      "main": [
+        [
+          {
+            "node": "Load Fal.ai Scenes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Fal.ai Scenes": {
+      "main": [
+        [
+          {
+            "node": "Log Images Started",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Images Started": {
+      "main": [
+        [
+          {
+            "node": "Prepare Image Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Image Data": {
+      "main": [
+        [
+          {
+            "node": "If Has Scenes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Has Scenes": {
+      "main": [
+        [
+          {
+            "node": "Fire All Scenes",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Skip To Sync",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fire All Scenes": {
+      "main": [
+        [
+          {
+            "node": "Wait for Processing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for Processing": {
+      "main": [
+        [
+          {
+            "node": "Check Pending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Pending": {
+      "main": [
+        [
+          {
+            "node": "If All Done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If All Done": {
+      "main": [
+        [
+          {
+            "node": "Compile Summary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait for Processing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compile Summary": {
+      "main": [
+        [
+          {
+            "node": "Log Images Completed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Images Completed": {
+      "main": [
+        [
+          {
+            "node": "Parallel Completion Sync",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Skip To Sync": {
+      "main": [
+        [
+          {
+            "node": "Parallel Completion Sync",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parallel Completion Sync": {
+      "main": [
+        [
+          {
+            "node": "If Assembly Claimed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Assembly Claimed": {
+      "main": [
+        [
+          {
+            "node": "Fire Assembly Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exit No Assembly",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "active": true
+}

@@ -1,0 +1,436 @@
+{
+  "updatedAt": "2026-03-28T18:01:18.768Z",
+  "createdAt": "2026-03-28T17:25:57.560Z",
+  "id": "OYahvKcydMrUxK8j",
+  "name": "OPS_KEN_BURNS",
+  "description": null,
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "id": "trigger-1",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "production/ken-burns",
+        "authentication": "headerAuth",
+        "options": {},
+        "multipleMethods": false
+      },
+      "webhookId": "ken-burns-trigger"
+    },
+    {
+      "id": "query-1",
+      "name": "Get Pending Scenes",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        300
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/scenes?video_id=eq.{{$json.body.video_id}}&clip_status=eq.pending&image_url=not.is.null&select=id,scene_number,image_url,zoom_direction,color_mood,selective_color_element,audio_duration_ms&order=scene_number.asc",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "check-1",
+      "name": "Any Pending?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        700,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.length }}",
+              "rightValue": "0",
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              },
+              "id": "condition-1774718757387-y9zwhubmq"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "split-1",
+      "name": "Process Each Scene",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        920,
+        200
+      ],
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      }
+    },
+    {
+      "id": "code-1",
+      "name": "Run Ken Burns FFmpeg",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1140,
+        200
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Ken Burns: download image \u2192 run FFmpeg \u2192 return clip path\nconst scene = $input.first().json;\nconst topicId = $('Webhook Trigger').first().json.body.video_id;\nconst sceneNum = String(scene.scene_number).padStart(3, '0');\nconst duration = scene.audio_duration_ms ? (scene.audio_duration_ms / 1000).toFixed(1) : '6';\nconst zoomDir = scene.zoom_direction || 'in';\nconst colorMood = scene.color_mood || 'full_natural';\nconst skipColor = scene.selective_color_element ? '1' : '0';\nconst imgPath = `/tmp/operscale-production/kb_${topicId}_${sceneNum}.png`;\nconst clipPath = `/tmp/operscale-production/kb_${topicId}_${sceneNum}.mp4`;\n\n// Download image\nconst { execSync } = require('child_process');\ntry {\n  execSync(`curl -sL -o \"${imgPath}\" \"${scene.image_url}\"`, { timeout: 30000 });\n} catch (e) {\n  return [{ json: { success: false, scene_id: scene.id, scene_number: scene.scene_number, error: 'Image download failed: ' + e.message } }];\n}\n\n// Run Ken Burns\ntry {\n  const cmd = `bash /tmp/operscale-production/ken_burns.sh \"${imgPath}\" ${duration} ${zoomDir} ${colorMood} \"${clipPath}\" ${skipColor}`;\n  execSync(cmd, { timeout: 120000 });\n} catch (e) {\n  // Cleanup\n  try { execSync(`rm -f \"${imgPath}\"`); } catch(_) {}\n  return [{ json: { success: false, scene_id: scene.id, scene_number: scene.scene_number, error: 'Ken Burns failed: ' + e.message } }];\n}\n\n// Cleanup input image\ntry { execSync(`rm -f \"${imgPath}\"`); } catch(_) {}\n\nreturn [{ json: {\n  success: true,\n  scene_id: scene.id,\n  scene_number: scene.scene_number,\n  clip_path: clipPath,\n  duration: parseFloat(duration),\n  zoom_direction: zoomDir,\n  color_mood: colorMood,\n} }];"
+      }
+    },
+    {
+      "id": "check-2",
+      "name": "Ken Burns OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1360,
+        200
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.success }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "condition-1774718757387-ri8aql9om"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "update-1",
+      "name": "Update Scene Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1580,
+        100
+      ],
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/scenes?id=eq.{{$json.scene_id}}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"clip_status\": \"generated\", \"video_url\": \"file:///tmp/operscale-production/kb_\" + $json.scene_id + \".mp4\"}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false
+            }
+          }
+        },
+        "contentType": "json"
+      }
+    },
+    {
+      "id": "log-1",
+      "name": "Log Failure",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1580,
+        350
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/production_logs",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"video_id\": \"\" + $('Webhook Trigger').first().json.body.video_id + \"\", \"stage\": \"ken_burns\", \"scene_number\": \" + $json.scene_number + \", \"action\": \"ken_burns_generate\", \"status\": \"failed\", \"error_message\": \"\" + $json.error + \"\"}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false
+            }
+          }
+        },
+        "contentType": "json"
+      }
+    },
+    {
+      "id": "done-1",
+      "name": "All Done",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        920,
+        450
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "update-topic-1",
+      "name": "Update Topic Stage",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1140,
+        450
+      ],
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/videos?id=eq.{{$('Webhook Trigger').first().json.body.video_id}}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"pipeline_stage\": \"ken_burns\", \"ken_burns_progress\": \"complete\"}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false
+            }
+          }
+        },
+        "contentType": "json"
+      }
+    },
+    {
+      "id": "fire-assembly",
+      "name": "Fire Assembly",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1360,
+        450
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/operscale/production/captions-assembly",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ video_id: $('Webhook Trigger').first().json.body.video_id, order_id: $('Webhook Trigger').first().json.body.order_id }) }}",
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.DASHBOARD_API_TOKEN}}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Pending Scenes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Pending Scenes": {
+      "main": [
+        [
+          {
+            "node": "Any Pending?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Any Pending?": {
+      "main": [
+        [
+          {
+            "node": "Process Each Scene",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "All Done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Ken Burns FFmpeg": {
+      "main": [
+        [
+          {
+            "node": "Ken Burns OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ken Burns OK?": {
+      "main": [
+        [
+          {
+            "node": "Update Scene Status",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Scene Status": {
+      "main": [
+        [
+          {
+            "node": "Process Each Scene",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Failure": {
+      "main": [
+        [
+          {
+            "node": "Process Each Scene",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "All Done": {
+      "main": [
+        [
+          {
+            "node": "Update Topic Stage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Each Scene": {
+      "main": [
+        [
+          {
+            "node": "All Done",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Run Ken Burns FFmpeg",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Topic Stage": {
+      "main": [
+        [
+          {
+            "node": "Fire Assembly",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": null,
+  "versionId": "eca35313-308a-4b74-92e3-83a10b1c389b",
+  "activeVersionId": null,
+  "versionCounter": 3,
+  "triggerCount": 0,
+  "shared": [
+    {
+      "updatedAt": "2026-03-28T17:25:57.563Z",
+      "createdAt": "2026-03-28T17:25:57.563Z",
+      "role": "workflow:owner",
+      "workflowId": "OYahvKcydMrUxK8j",
+      "projectId": "ccWn1Q4giuKzXIbJ",
+      "project": {
+        "updatedAt": "2026-01-26T11:09:31.107Z",
+        "createdAt": "2026-01-26T03:51:33.410Z",
+        "id": "ccWn1Q4giuKzXIbJ",
+        "name": "Akinwunmi Akinrimisi <akinolacrypto@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "ab010feb-355c-4130-b354-4e929908258e"
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": null
+}

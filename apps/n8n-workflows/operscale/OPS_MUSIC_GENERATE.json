@@ -1,0 +1,75 @@
+{
+  "name": "OPS_MUSIC_GENERATE",
+  "nodes": [
+    {
+      "id": "trigger-1",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "inputSource": "passthrough"
+      }
+    },
+    {
+      "id": "code-1",
+      "name": "Select Music Track",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// WF_MUSIC_GENERATE \u2014 Vertex AI Lyria music composition with per-project preferences.\n// Pattern: fetch() + $env (n8n 2.8.4 task runner safe). Respects migration 014 music prefs.\n// Updated S5 (CF07): music_enabled short-circuit, music_mood_override prompt injection,\n// music_volume feeds ducking, claude-haiku-4-5-20251001 for mood analysis.\n\nconst input = $input.first().json;\nconst topicId = input.video_id;\nconst shortForm = !!input.short_form;\nconst SUPABASE = $env.SUPABASE_URL;\nconst HEADERS_SUPA = { apikey: $env.SUPABASE_ANON_KEY, Authorization: `Bearer ${$env.SUPABASE_SERVICE_ROLE_KEY}`, 'Content-Type': 'application/json' };\n\nasync function fetchJson(url, opts = {}) {\n  const res = await fetch(url, opts);\n  if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);\n  return res.json();\n}\n\nif (!topicId) return [{ json: { success: false, error: 'video_id required' } }];\n\n// \u2500\u2500 1. Topic + project fetch (join project preferences)\nconst topicRows = await fetchJson(`${SUPABASE}/rest/v1/videos?id=eq.${topicId}&select=id,order_id,script_json,word_count,seo_title,production_register,register_era_detected`, { headers: HEADERS_SUPA });\nconst topic = topicRows?.[0];\nif (!topic) return [{ json: { success: false, error: 'topic not found', video_id: topicId } }];\nif (!topic.script_json) return [{ json: { success: false, error: 'no script_json', video_id: topicId } }];\n\nconst projectRows = await fetchJson(`${SUPABASE}/rest/v1/orders?id=eq.${topic.order_id}&select=music_enabled,music_volume,music_mood_override,music_source`, { headers: HEADERS_SUPA });\nconst project = projectRows?.[0] || {};\nconst musicEnabled = project.music_enabled !== false; // null/true \u2192 enabled\nconst musicVolume = Number(project.music_volume ?? (shortForm ? 0.08 : 0.12));\nconst moodOverride = project.music_mood_override || null;\nconst musicSource = project.music_source || 'lyria';\n\n// \u2500\u2500 Fetch production_register config (BPM + mood keywords)\nlet registerConfig = null;\nlet registerId = topic.production_register || null;\nlet registerEra = topic.register_era_detected || null;\nif (registerId) {\n  try {\n    const rows = await fetchJson(`${SUPABASE}/rest/v1/production_registers?register_id=eq.${registerId}&select=config`, { headers: HEADERS_SUPA });\n    registerConfig = rows?.[0]?.config || null;\n  } catch (e) { console.warn('Register config fetch failed (non-fatal): ' + e.message); }\n}\nconst registerBpmMin = registerConfig?.music_bpm_min || null;\nconst registerBpmMax = registerConfig?.music_bpm_max || null;\nconst registerMoodKeywords = registerConfig?.music_mood_keywords || null;\n\n// Early exit if music disabled for this project\nif (!musicEnabled) {\n  return [{ json: { success: true, skipped: true, reason: 'music_disabled', video_id: topicId, duck_volume: 0 } }];\n}\n\n// Library-source path: dashboard/user picks track from music_library; skip Lyria\nif (musicSource === 'library') {\n  return [{ json: { success: true, skipped: true, reason: 'library_source', video_id: topicId, duck_volume: musicVolume.toFixed(2) } }];\n}\n\n// \u2500\u2500 2. Derive script timing\nconst scenes = Array.isArray(topic.script_json) ? topic.script_json : (topic.script_json?.scenes || []);\nconst scriptText = scenes.map(s => s.narration || s.narration_text || '').join(' ');\nconst wordCount = topic.word_count || scriptText.split(/\\s+/).filter(Boolean).length;\nconst durationMinutes = Math.max(1, Math.ceil(wordCount / 150));\nconst clipsNeeded = Math.max(1, Math.ceil((durationMinutes * 60) / 30));\n\n// \u2500\u2500 3. Mood profile via Claude Haiku 4.5 (cost-sensitive per S1-S4 convention)\nlet moodConstraint;\nif (moodOverride) {\n  moodConstraint = `The user has LOCKED the mood to: ${moodOverride}. Honor this \u2014 do not drift.`;\n} else if (registerMoodKeywords && registerBpmMin && registerBpmMax) {\n  moodConstraint = `Production register is ${registerId}${registerEra ? ' (era: ' + registerEra + ')' : ''}. The register prescribes mood keywords: ${registerMoodKeywords}. BPM MUST stay within ${registerBpmMin}-${registerBpmMax} BPM. Use these as hard constraints; derive specific instrumentation from the script emotional arc.`;\n} else {\n  moodConstraint = 'Derive mood from script emotional arc.';\n}\n\nconst musicPrompt = [\n  'You are a world-class film composer scoring cinematic background music for a YouTube video essay.',\n  'Analyze this script and return a music generation profile.',\n  '',\n  moodConstraint,\n  '',\n  'REQUIREMENTS:',\n  '- Film score quality: orchestral strings, emotive piano, atmospheric synth pads',\n  '- Dynamic range: soft passages, building tension, emotional swells',\n  '- Support narration: stay in mid-low frequency range, leave vocal space clear',\n  '- NO lyrics, NO vocals, NO artist name references',\n  '- Describe SOUND only: instruments, mood, tempo, energy, texture',\n  '',\n  `Script: ${wordCount} words, ${durationMinutes} minutes, needs ${clipsNeeded} \u00d7 30s clips`,\n  '',\n  `Script excerpt: ${scriptText.substring(0, 2000)}`,\n  '',\n  'Return ONLY this JSON (no markdown):',\n  '{\"genre\":\"\",\"mood\":\"\",\"bpm\":0,\"instruments\":\"\",\"base_prompt\":\"\",\"variation_prompts\":[\"\",\"\",\"\"],\"energy_curve\":\"\"}'\n].join('\\n');\n\nlet musicProfile;\ntry {\n  const aiResp = await fetchJson('https://api.anthropic.com/v1/messages', {\n    method: 'POST',\n    headers: { 'x-api-key': $env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },\n    body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 1024, messages: [{ role: 'user', content: musicPrompt }] })\n  });\n  const text = aiResp.content?.[0]?.text || '{}';\n  try { musicProfile = JSON.parse(text); }\n  catch { const m = text.match(/\\{[\\s\\S]*\\}/); musicProfile = m ? JSON.parse(m[0]) : null; }\n} catch (e) {\n  musicProfile = null;\n}\n\nif (!musicProfile || !musicProfile.base_prompt) {\n  musicProfile = {\n    genre: 'cinematic', mood: moodOverride || 'contemplative', bpm: 80,\n    instruments: 'orchestral strings, piano, subtle synth pads',\n    base_prompt: `${moodOverride || 'cinematic'} orchestral underscore, emotional piano, subtle strings, 80 bpm`,\n    variation_prompts: [], energy_curve: 'gradual swell'\n  };\n}\n\n// Honor mood override by prepending to base_prompt if not already present\nif (moodOverride && !musicProfile.base_prompt.toLowerCase().includes(moodOverride.toLowerCase())) {\n  musicProfile.base_prompt = `${moodOverride} ${musicProfile.base_prompt}`;\n}\n\n// \u2500\u2500 4. GCP token + Lyria generation (existing infrastructure \u2014 kept intact)\nlet gcpToken;\ntry {\n  const tokenResp = await fetchJson('http://gcp-token-service:3001/token');\n  gcpToken = tokenResp.token || tokenResp.access_token;\n} catch (e) {\n  return [{ json: { success: false, error: 'GCP token service unavailable: ' + e.message, video_id: topicId, duck_volume: musicVolume.toFixed(2) } }];\n}\n\nconst gcpProject = $env.GCP_PROJECT || 'vision-gridai';\nconst gcpRegion = $env.GCP_REGION || 'us-central1';\nconst lyriaUrl = `https://${gcpRegion}-aiplatform.googleapis.com/v1/orders/${gcpProject}/locations/${gcpRegion}/publishers/google/models/lyria-002:predict`;\n\nconst prompts = [musicProfile.base_prompt, ...(musicProfile.variation_prompts || [])].filter(Boolean);\nconst clipPaths = [];\n\nfor (let i = 0; i < Math.min(clipsNeeded, Math.max(prompts.length, 1)); i++) {\n  const prompt = prompts[i % prompts.length] || musicProfile.base_prompt;\n  try {\n    const resp = await fetchJson(lyriaUrl, {\n      method: 'POST',\n      headers: { Authorization: `Bearer ${gcpToken}`, 'Content-Type': 'application/json' },\n      body: JSON.stringify({ instances: [{ prompt, duration_seconds: 30 }], parameters: { sample_count: 1 } })\n    });\n    const audioData = resp?.predictions?.[0]?.bytesBase64Encoded;\n    if (audioData) {\n      const clipPath = `/tmp/operscale-production/${topicId}/music_clip_${i}.wav`;\n      const { execSync } = require('child_process');\n      execSync(`mkdir -p /tmp/operscale-production/${topicId}`);\n      require('fs').writeFileSync(clipPath, Buffer.from(audioData, 'base64'));\n      clipPaths.push(clipPath);\n    }\n  } catch (e) {\n    // continue on per-clip failure\n  }\n  if (i < clipsNeeded - 1) await new Promise(r => setTimeout(r, 5000));\n}\n\nif (clipPaths.length === 0) {\n  return [{ json: { success: false, error: 'No music clips generated', video_id: topicId, duck_volume: musicVolume.toFixed(2) } }];\n}\n\n// \u2500\u2500 5. Merge + loop (FFmpeg via host-side execSync; already working in prod)\nconst { execSync } = require('child_process');\nconst mergedPath = `/tmp/operscale-production/${topicId}/music_merged.mp3`;\ntry {\n  if (clipPaths.length === 1) {\n    execSync(`ffmpeg -y -i \"${clipPaths[0]}\" -c:a libmp3lame -b:a 192k \"${mergedPath}\"`, { timeout: 30000 });\n  } else {\n    const concatList = clipPaths.map(p => `file '${p}'`).join('\\n');\n    require('fs').writeFileSync(`/tmp/operscale-production/${topicId}/music_concat.txt`, concatList);\n    execSync(`ffmpeg -y -f concat -safe 0 -i /tmp/operscale-production/${topicId}/music_concat.txt -c:a libmp3lame -b:a 192k \"${mergedPath}\"`, { timeout: 60000 });\n  }\n} catch (e) {\n  return [{ json: { success: false, error: 'Music merge failed: ' + e.message, video_id: topicId } }];\n}\n\nconst targetDuration = durationMinutes * 60;\nconst loopedPath = `/tmp/operscale-production/${topicId}/music_final.mp3`;\ntry {\n  execSync(`ffmpeg -y -stream_loop -1 -i \"${mergedPath}\" -t ${targetDuration} -c:a libmp3lame -b:a 192k \"${loopedPath}\"`, { timeout: 60000 });\n} catch (e) {\n  execSync(`cp \"${mergedPath}\" \"${loopedPath}\"`);\n}\n\nreturn [{ json: {\n  success: true,\n  video_id: topicId,\n  method: 'lyria_generation',\n  model: 'lyria-002',\n  mood_derived: musicProfile.mood,\n  mood_override_applied: !!moodOverride,\n  music_source: musicSource,\n  clips_generated: clipPaths.length,\n  clips_needed: clipsNeeded,\n  music_path: loopedPath,\n  duration_target: targetDuration,\n  music_profile: musicProfile,\n  duck_volume: musicVolume.toFixed(2)\n}}];"
+      }
+    },
+    {
+      "id": "noop-1",
+      "name": "Return Track Info",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        720,
+        300
+      ],
+      "parameters": {}
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Select Music Track",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Music Track": {
+      "main": [
+        [
+          {
+            "node": "Return Track Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "active": true
+}

@@ -1,0 +1,731 @@
+{
+  "name": "OPS_MASTER",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "master/start",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "webhook-master",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        400
+      ],
+      "webhookId": "master-start-webhook"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "auth-check",
+              "leftValue": "={{ $json.headers.authorization }}",
+              "rightValue": "=Bearer {{ $env.DASHBOARD_API_TOKEN }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-auth",
+      "name": "Check Auth",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        420,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, data: null, error: 'Unauthorized' }) }}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "id": "respond-401",
+      "name": "Auth Failed",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        640,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate request: extract video_id and start_from\nconst body = $input.first().json.body || {};\nconst topicId = body.video_id;\nconst startFrom = body.start_from || 'auto';\n\nif (!topicId) {\n  throw new Error('Missing required field: video_id');\n}\n\nconst validStages = ['auto', 'script', 'classify', 'images', 'tts', 'assembly', 'thumbnail'];\nif (!validStages.includes(startFrom)) {\n  throw new Error(`Invalid start_from: ${startFrom}. Must be one of: ${validStages.join(', ')}`);\n}\n\nreturn [{ json: { video_id: topicId, start_from: startFrom } }];"
+      },
+      "id": "validate",
+      "name": "Validate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, data: { video_id: $json.video_id, start_from: $json.start_from, message: 'Pipeline started' }, error: null }) }}",
+        "options": {
+          "responseCode": 202
+        }
+      },
+      "id": "respond-202",
+      "name": "Respond 202",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        860,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/videos",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "=eq.{{ $('Validate').first().json.video_id }}"
+            },
+            {
+              "name": "select",
+              "value": "*"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_ANON_KEY }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "read-topic",
+      "name": "Read Topic",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1080,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "QsqqFXtnLakNfVKR",
+          "name": "Supabase Service Role"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Determine the next pipeline stage based on topic status fields\nconst topic = $input.first().json[0];\nif (!topic) throw new Error('Topic not found');\n\nconst startFrom = $('Validate').first().json.start_from;\nconst topicId = topic.id;\nconst projectId = topic.order_id;\n\nlet nextStage = startFrom;\n\nif (startFrom === 'auto') {\n  // Determine next stage based on topic's current state\n  if (!topic.script_json || topic.status === 'pending' || topic.status === 'approved') {\n    nextStage = 'script';\n  } else if (topic.script_json && topic.scene_count > 0 && topic.status === 'script_approved') {\n    // Script exists and is approved, check if scenes have been classified\n    nextStage = 'classify';\n  } else if (topic.images_progress === 'pending' || topic.images_progress === null) {\n    nextStage = 'images';\n  } else if (topic.audio_progress === 'pending' || topic.audio_progress === null) {\n    nextStage = 'tts';\n  } else if (topic.assembly_status === 'pending' || topic.assembly_status === null) {\n    nextStage = 'assembly';\n  } else if (!topic.thumbnail_url) {\n    nextStage = 'thumbnail';\n  } else {\n    nextStage = 'complete';\n  }\n}\n\nreturn [{ json: { next_stage: nextStage, video_id: topicId, order_id: projectId, topic_status: topic.status } }];"
+      },
+      "id": "determine-stage",
+      "name": "Determine Start Stage",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_WEBHOOK_BASE }}/script/generate",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.DASHBOARD_API_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ video_id: $json.video_id }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "trigger-script",
+      "name": "Trigger Script",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1780,
+        -20
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "QsqqFXtnLakNfVKR",
+          "name": "Supabase Service Role"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_WEBHOOK_BASE }}/classify-scenes",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.DASHBOARD_API_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ video_id: $json.video_id }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "trigger-classify",
+      "name": "Trigger Classify",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1780,
+        120
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "QsqqFXtnLakNfVKR",
+          "name": "Supabase Service Role"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_WEBHOOK_BASE }}/production/trigger",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.DASHBOARD_API_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ video_id: $json.video_id, action: 'generate_images' }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "trigger-images",
+      "name": "Trigger Images",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1780,
+        260
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "QsqqFXtnLakNfVKR",
+          "name": "Supabase Service Role"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_WEBHOOK_BASE }}/production/trigger",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.DASHBOARD_API_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ video_id: $json.video_id, action: 'generate_audio' }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "trigger-tts",
+      "name": "Trigger TTS",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1780,
+        400
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "QsqqFXtnLakNfVKR",
+          "name": "Supabase Service Role"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_WEBHOOK_BASE }}/production/trigger",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.DASHBOARD_API_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ video_id: $json.video_id, action: 'assemble' }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "trigger-assembly",
+      "name": "Trigger Assembly",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1780,
+        540
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "QsqqFXtnLakNfVKR",
+          "name": "Supabase Service Role"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/production_logs",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_ANON_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ video_id: $('Validate').first().json.video_id, stage: $('Determine Start Stage').first().json.next_stage, action: 'pipeline_started', status: 'success', details: { start_from: $('Validate').first().json.start_from, resolved_stage: $('Determine Start Stage').first().json.next_stage, triggered_by: 'master' } }) }}",
+        "options": {}
+      },
+      "id": "log-started",
+      "name": "Log Started",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2040,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "QsqqFXtnLakNfVKR",
+          "name": "Supabase Service Role"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle error: update topic status to failed\nconst topicId = $('Validate').first().json.video_id;\nconst errorMsg = $input.first().json?.message || 'Pipeline start failed';\n\ntry {\n  await this.helpers.httpRequest({\n    method: 'PATCH',\n    url: `${process.env.SUPABASE_URL}/rest/v1/videos?id=eq.${topicId}`,\n    headers: {\n      'apikey': process.env.SUPABASE_ANON_KEY,\n      'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,\n      'Content-Type': 'application/json',\n      'Prefer': 'return=minimal',\n    },\n    body: JSON.stringify({ status: 'failed', error_log: errorMsg, last_status_change: new Date().toISOString() }),\n  });\n\n  // Log the failure\n  await this.helpers.httpRequest({\n    method: 'POST',\n    url: `${process.env.SUPABASE_URL}/rest/v1/production_logs`,\n    headers: {\n      'apikey': process.env.SUPABASE_ANON_KEY,\n      'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,\n      'Content-Type': 'application/json',\n      'Prefer': 'return=minimal',\n    },\n    body: JSON.stringify({ video_id: topicId, stage: 'master', action: 'pipeline_failed', status: 'error', details: { error: errorMsg } }),\n  });\n} catch (e) { /* best effort */ }\n\nreturn [{ json: { video_id: topicId, error: errorMsg, status: 'failed' } }];"
+      },
+      "id": "handle-error",
+      "name": "Handle Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        860,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.next_stage }}",
+              "rightValue": "script",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-script",
+      "name": "IF Script",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.next_stage }}",
+              "rightValue": "classify",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-classify",
+      "name": "IF Classify",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        250
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.next_stage }}",
+              "rightValue": "images",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-images",
+      "name": "IF Images",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.next_stage }}",
+              "rightValue": "tts",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-tts",
+      "name": "IF Tts",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        550
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Check Auth",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Auth": {
+      "main": [
+        [
+          {
+            "node": "Validate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Auth Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate": {
+      "main": [
+        [
+          {
+            "node": "Respond 202",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond 202": {
+      "main": [
+        [
+          {
+            "node": "Read Topic",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Topic": {
+      "main": [
+        [
+          {
+            "node": "Determine Start Stage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Determine Start Stage": {
+      "main": [
+        [
+          {
+            "node": "IF Script",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger Script": {
+      "main": [
+        [
+          {
+            "node": "Log Started",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger Classify": {
+      "main": [
+        [
+          {
+            "node": "Log Started",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger Images": {
+      "main": [
+        [
+          {
+            "node": "Log Started",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger TTS": {
+      "main": [
+        [
+          {
+            "node": "Log Started",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger Assembly": {
+      "main": [
+        [
+          {
+            "node": "Log Started",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Script": {
+      "main": [
+        [
+          {
+            "node": "Trigger Script",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF Classify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Classify": {
+      "main": [
+        [
+          {
+            "node": "Trigger Classify",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF Images",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Images": {
+      "main": [
+        [
+          {
+            "node": "Trigger Images",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF TTS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF TTS": {
+      "main": [
+        [
+          {
+            "node": "Trigger TTS",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Trigger Assembly",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "executionTimeout": 120,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": null,
+  "tags": []
+}

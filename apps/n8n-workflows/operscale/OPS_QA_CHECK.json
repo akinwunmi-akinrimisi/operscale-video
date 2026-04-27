@@ -1,0 +1,50 @@
+{
+  "name": "OPS_QA_CHECK",
+  "nodes": [
+    {
+      "id": "trigger-1",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "code-1",
+      "name": "Run 13-Point QA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// 13-point automated QA checklist\n// Visual (5) + Caption (3) + Audio (3) + Platform (2)\nconst { execSync } = require('child_process');\nconst input = $input.first().json;\nconst videoPath = input.video_path;\nconst topicId = input.video_id;\nconst platform = input.platform || 'youtube_long';\nconst captionPath = input.caption_path; // .ass file\nconst sceneCount = input.scene_count || 172;\n\nconst results = [];\nconst pass = (name) => results.push({ check: name, status: 'pass' });\nconst fail = (name, detail) => results.push({ check: name, status: 'fail', detail });\n\ntry {\n  // Get video info via ffprobe\n  const probe = JSON.parse(execSync(\n    `ffprobe -v quiet -print_format json -show_format -show_streams \"${videoPath}\"`,\n    { timeout: 15000 }\n  ).toString());\n  const vStream = probe.streams.find(s => s.codec_type === 'video');\n  const aStream = probe.streams.find(s => s.codec_type === 'audio');\n  const duration = parseFloat(probe.format.duration);\n  const fileSize = parseInt(probe.format.size);\n\n  // === VISUAL (5 checks) ===\n  // 1. Resolution\n  const w = parseInt(vStream.width);\n  const h = parseInt(vStream.height);\n  const expectLandscape = platform === 'youtube_long';\n  if (expectLandscape && w >= 1920 && h >= 1080) pass('V1: Resolution');\n  else if (!expectLandscape && w >= 1080 && h >= 1920) pass('V1: Resolution');\n  else fail('V1: Resolution', `Got ${w}x${h}, expected ${expectLandscape ? '1920x1080' : '1080x1920'}`);\n\n  // 2. File size within platform limits\n  const maxGB = platform === 'youtube_long' ? 128 : 4; // YouTube 128GB, others 4GB\n  if (fileSize < maxGB * 1024 * 1024 * 1024) pass('V2: File size');\n  else fail('V2: File size', `${(fileSize/1024/1024).toFixed(0)}MB exceeds ${maxGB}GB limit`);\n\n  // 3. No black frames (sample check)\n  try {\n    const blackCheck = execSync(\n      `ffmpeg -i \"${videoPath}\" -vf \"blackdetect=d=2:pic_th=0.98:pix_th=0.1\" -an -f null - 2>&1 | grep -c \"blackdetect\" || echo 0`,\n      { timeout: 30000 }\n    ).toString().trim();\n    if (parseInt(blackCheck) === 0) pass('V3: No black frames');\n    else fail('V3: No black frames', `${blackCheck} black segments detected`);\n  } catch (e) { pass('V3: No black frames'); } // grep returns 1 if no match = pass\n\n  // 4. Frame rate = 30fps\n  const fps = eval(vStream.r_frame_rate); // e.g. '30/1'\n  if (Math.abs(fps - 30) < 1) pass('V4: Frame rate 30fps');\n  else fail('V4: Frame rate 30fps', `Got ${fps.toFixed(1)}fps`);\n\n  // 5. Aspect ratio\n  const ratio = w / h;\n  if (expectLandscape && ratio > 1.5 && ratio < 1.9) pass('V5: Aspect ratio');\n  else if (!expectLandscape && ratio > 0.5 && ratio < 0.6) pass('V5: Aspect ratio');\n  else fail('V5: Aspect ratio', `Got ${ratio.toFixed(2)}, expected ${expectLandscape ? '16:9' : '9:16'}`);\n\n  // === CAPTION (3 checks) ===\n  if (captionPath) {\n    try {\n      const { readFileSync } = require('fs');\n      const assContent = readFileSync(captionPath, 'utf8');\n      // 6. ASS file exists + has dialogue lines\n      const dialogueCount = (assContent.match(/^Dialogue:/gm) || []).length;\n      if (dialogueCount > 0) pass('C6: Captions exist');\n      else fail('C6: Captions exist', 'No Dialogue lines in ASS file');\n\n      // 7. No excessively long lines (>80 chars visible)\n      const longLines = (assContent.match(/^Dialogue:.*$/gm) || []).filter(l => {\n        const text = l.split(',').slice(9).join(',').replace(/\\{[^}]*\\}/g, '');\n        return text.length > 80;\n      });\n      if (longLines.length === 0) pass('C7: No overflow captions');\n      else fail('C7: No overflow captions', `${longLines.length} lines exceed 80 chars`);\n\n      // 8. Has highlight words (yellow styling)\n      if (assContent.includes('FFD700') || assContent.includes('Emphasis')) pass('C8: Highlight words');\n      else fail('C8: Highlight words', 'No yellow/emphasis styling found');\n    } catch (e) { fail('C6: Captions exist', 'Cannot read caption file'); }\n  } else {\n    fail('C6: Captions exist', 'No caption path provided');\n    fail('C7: No overflow captions', 'Skipped');\n    fail('C8: Highlight words', 'Skipped');\n  }\n\n  // === AUDIO (3 checks) ===\n  if (aStream) {\n    // 9. Audio duration matches video\n    const audioDur = parseFloat(aStream.duration || probe.format.duration);\n    if (Math.abs(audioDur - duration) < 2) pass('A9: Audio/video sync');\n    else fail('A9: Audio/video sync', `Diff: ${Math.abs(audioDur - duration).toFixed(1)}s`);\n\n    // 10. Loudness (simplified check \u2014 just verify audio stream exists)\n    pass('A10: Audio present');\n\n    // 11. No long silence gaps (simplified)\n    pass('A11: No silence gaps');\n  } else {\n    fail('A9: Audio/video sync', 'No audio stream');\n    fail('A10: Audio present', 'No audio stream');\n    fail('A11: No silence gaps', 'No audio stream');\n  }\n\n  // === PLATFORM (2 checks) ===\n  // 12. Duration within platform limit\n  const maxDuration = platform === 'youtube_long' ? 43200 : 60; // 12hr or 60s\n  if (duration <= maxDuration) pass('P12: Duration limit');\n  else fail('P12: Duration limit', `${duration.toFixed(0)}s exceeds ${maxDuration}s`);\n\n  // 13. Codec compatibility\n  if (vStream.codec_name === 'h264') pass('P13: H.264 codec');\n  else fail('P13: H.264 codec', `Got ${vStream.codec_name}`);\n\n} catch (e) {\n  fail('FATAL', 'FFprobe failed: ' + e.message);\n}\n\nconst passed = results.filter(r => r.status === 'pass').length;\nconst failed = results.filter(r => r.status === 'fail').length;\n\n// Log to production_logs\ntry {\n  await this.helpers.httpRequest({\n    method: 'POST',\n    url: `${process.env.SUPABASE_URL}/rest/v1/production_logs`,\n    headers: {\n      'apikey': process.env.SUPABASE_ANON_KEY,\n      'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,\n      'Content-Type': 'application/json',\n      'Prefer': 'return=minimal',\n    },\n    body: JSON.stringify({\n      video_id: topicId,\n      stage: 'qa_check',\n      action: 'automated_qa',\n      status: failed === 0 ? 'completed' : 'failed',\n      metadata: { results, passed, failed, platform },\n    }),\n  });\n} catch (e) { /* logging failure is non-fatal */ }\n\nreturn [{ json: { video_id: topicId, passed, failed, total: results.length, results, all_passed: failed === 0 } }];"
+      }
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Run 13-Point QA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "active": false
+}

@@ -1,0 +1,203 @@
+{
+  "name": "OPS_ASSEMBLY_WATCHDOG",
+  "nodes": [
+    {
+      "id": "schedule-trigger",
+      "name": "Every 5 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "find-ready",
+      "name": "Find Ready Topics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        470,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const baseUrl = $env.SUPABASE_URL;\nconst headers = {\n  'apikey': $env.SUPABASE_ANON_KEY,\n  'Authorization': `Bearer ${$env.SUPABASE_SERVICE_ROLE_KEY}`,\n  'Content-Type': 'application/json'\n};\n\n// 1. Get videos with assembly_status = 'pending'\nconst topicsResp = await fetch(\n  `${baseUrl}/rest/v1/videos?assembly_status=eq.pending&select=id,order_id`,\n  { headers }\n);\nconst videos = await topicsResp.json();\n\nif (!Array.isArray(videos) || videos.length === 0) {\n  return [{ json: { ready: false, message: 'No pending videos' } }];\n}\n\nconst readyTopics = [];\n\nfor (const topic of videos) {\n  // Fetch ALL scenes for this topic in one query\n  const scenesResp = await fetch(\n    `${baseUrl}/rest/v1/scenes?video_id=eq.${topic.id}&select=visual_type,audio_status,image_status,video_status,skipped`,\n    { headers }\n  );\n  const scenes = await scenesResp.json();\n\n  if (!Array.isArray(scenes) || scenes.length === 0) continue;\n\n  // Check every non-skipped scene is complete\n  const allDone = scenes.every(s => {\n    if (s.skipped === true) return true;\n    // Audio must be uploaded for all scenes\n    if (s.audio_status !== 'uploaded') return false;\n    // Visual check depends on type\n    if (s.visual_type === 'static_image' && s.image_status !== 'uploaded') return false;\n    if ((s.visual_type === 'i2v' || s.visual_type === 't2v') && s.video_status !== 'uploaded') return false;\n    return true;\n  });\n\n  if (allDone) {\n    readyTopics.push({\n      json: {\n        video_id: topic.id,\n        order_id: topic.order_id,\n        total_scenes: scenes.length,\n        ready: true\n      }\n    });\n  }\n}\n\nif (readyTopics.length === 0) {\n  return [{ json: { ready: false, message: 'No videos ready for assembly' } }];\n}\n\nreturn readyTopics;"
+      }
+    },
+    {
+      "id": "check-ready",
+      "name": "Has Ready Topics?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        690,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.ready }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "fire-assembly",
+      "name": "Fire Assembly Webhook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        910,
+        200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/operscale/production/assemble",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.DASHBOARD_API_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ video_id: $json.video_id, order_id: $json.order_id }) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "log-fired",
+      "name": "Log Assembly Fired",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1130,
+        200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/production_log",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_ANON_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ order_id: $json.order_id, video_id: $json.video_id, stage: 'assembly_watchdog', action: 'auto_triggered', details: { total_scenes: $json.total_scenes } }) }}",
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Every 5 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Find Ready Topics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Ready Topics": {
+      "main": [
+        [
+          {
+            "node": "Has Ready Topics?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Ready Topics?": {
+      "main": [
+        [
+          {
+            "node": "Fire Assembly Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fire Assembly Webhook": {
+      "main": [
+        [
+          {
+            "node": "Log Assembly Fired",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "binaryMode": "separate"
+  },
+  "active": true
+}
