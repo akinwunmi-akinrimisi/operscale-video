@@ -318,7 +318,6 @@
   },
   "settings": {
     "executionOrder": "v1",
-    "saveExecutionProgress": true,
     "callerPolicy": "workflowsFromSameOwner",
     "availableInMCP": false,
     "saveDataErrorExecution": "all",

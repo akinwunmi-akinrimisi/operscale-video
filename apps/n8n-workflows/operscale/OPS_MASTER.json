@@ -739,9 +739,6 @@
   },
   "settings": {
     "executionOrder": "v1",
-    "executionTimeout": 120,
     "callerPolicy": "workflowsFromSameOwner"
-  },
-  "staticData": null,
-  "tags": []
+  }
 }

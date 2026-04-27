@@ -18,7 +18,13 @@
         "options": {},
         "multipleMethods": false
       },
-      "webhookId": "ken-burns-trigger"
+      "webhookId": "ken-burns-trigger",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "KtMyWD7uJJBZYLjt",
+          "name": "Authorization"
+        }
+      }
     },
     {
       "id": "query-1",

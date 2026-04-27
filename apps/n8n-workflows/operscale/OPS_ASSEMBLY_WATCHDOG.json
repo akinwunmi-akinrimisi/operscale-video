@@ -203,9 +203,7 @@
     "saveDataErrorExecution": "all",
     "saveDataSuccessExecution": "none",
     "callerPolicy": "workflowsFromSameOwner",
-    "availableInMCP": false,
-    "timeSavedMode": "fixed",
-    "binaryMode": "separate"
+    "availableInMCP": false
   },
   "active": true
 }

@@ -320,7 +320,6 @@
     "executionOrder": "v1",
     "saveDataErrorExecution": "all",
     "saveDataSuccessExecution": "all",
-    "saveExecutionProgress": true,
     "callerPolicy": "workflowsFromSameOwner",
     "availableInMCP": false
   },

@@ -216,25 +216,45 @@ def rebind_subworkflow_fire_urls(workflow: dict) -> None:
 
 
 CANONICAL_WORKFLOW_KEYS = {'name', 'nodes', 'connections', 'settings', 'active'}
+CANONICAL_SETTINGS_KEYS = {
+    'executionOrder',
+    'saveDataErrorExecution',
+    'saveDataSuccessExecution',
+    'callerPolicy',
+    'availableInMCP',
+    'errorWorkflow',  # supported by n8n public API
+    'timezone',       # supported by n8n public API
+}
 
 
 def normalize_workflow_shape(workflow: dict) -> None:
-    """Drop runtime-metadata top-level fields that n8n's REST API rejects on POST.
+    """Drop runtime-metadata top-level + non-canonical settings fields that n8n's
+    REST API rejects on POST.
 
-    Some VG workflow exports (e.g. OPS_KEN_BURNS.json) carry runtime metadata
-    like `id`, `versionId`, `versionCounter`, `shared`, `createdAt`, `updatedAt`,
-    `pinData`, `tags`, `triggerCount`, `staticData`, `meta`, `description`,
-    `isArchived`, `activeVersion`, `activeVersionId`. The public API rejects
-    these with `request/body must NOT have additional properties`.
+    Top-level: some VG exports carry runtime metadata like `id`, `versionId`,
+    `versionCounter`, `shared`, `createdAt`, `updatedAt`, `pinData`, `tags`,
+    `triggerCount`, `staticData`, `meta`, `description`, `isArchived`,
+    `activeVersion`, `activeVersionId`. The public API rejects these with
+    `request/body must NOT have additional properties`.
 
-    Keep only the canonical create-payload fields: name, nodes, connections,
-    settings, active. Mutates in place. Idempotent.
+    Settings: workflows authored in the n8n UI may include UI-only or
+    deprecated keys like `timeSavedMode`, `binaryMode`, `executionTimeout`,
+    `saveExecutionProgress`. The public API rejects these with
+    `request/body/settings must NOT have additional properties`.
+
+    Keep only the canonical create-payload fields. Mutates in place.
+    Idempotent.
     """
     if not isinstance(workflow, dict):
         return
     for k in list(workflow.keys()):
         if k not in CANONICAL_WORKFLOW_KEYS:
             workflow.pop(k, None)
+    settings = workflow.get('settings')
+    if isinstance(settings, dict):
+        for k in list(settings.keys()):
+            if k not in CANONICAL_SETTINGS_KEYS:
+                settings.pop(k, None)
 
 
 def rebind(workflow: dict) -> dict:
