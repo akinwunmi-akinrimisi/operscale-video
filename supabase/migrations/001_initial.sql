@@ -45,7 +45,9 @@ CREATE TABLE IF NOT EXISTS briefs (
   niche_specific_followup JSONB,
   raw_form_payload JSONB,
   save_token TEXT UNIQUE,
-  submitted_at TIMESTAMPTZ DEFAULT now()
+  submitted_at TIMESTAMPTZ DEFAULT now(),
+  brand_colors_hex JSONB,
+  logo_storage_url TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_briefs_customer ON briefs(customer_id);
 CREATE INDEX IF NOT EXISTS idx_briefs_save_token ON briefs(save_token);
@@ -87,6 +89,10 @@ CREATE TABLE IF NOT EXISTS orders (
     )),
   delivery_email_sent_at TIMESTAMPTZ,
   delivery_whatsapp_sent_at TIMESTAMPTZ,
+  strategy_call_scheduled_for TIMESTAMPTZ,
+  strategy_call_completed_at TIMESTAMPTZ,
+  performance_checkin_email_sent_at TIMESTAMPTZ,
+  performance_checkin_response JSONB,
   total_cost_usd DECIMAL(8,4),
   cost_breakdown JSONB,
   retry_count INTEGER DEFAULT 0,
@@ -118,6 +124,8 @@ CREATE TABLE IF NOT EXISTS videos (
   i2v_progress TEXT DEFAULT 'pending',
   assembly_status TEXT DEFAULT 'pending',
   caption_burn_status TEXT DEFAULT 'pending',
+  revisions_used INT DEFAULT 0,
+  revisions_max INT,
   total_cost_usd DECIMAL(6,4),
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now(),
