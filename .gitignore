@@ -8,6 +8,11 @@
 *.key
 keys_new.env
 operscale_keys.env
+# GCP service-account JSON keys (root-level scratch + anywhere in tree)
+my-n8n-service-account*.json
+*-service-account*.json
+gcp-*.json
+service-account*.json
 
 # ─── Node / Next.js ──────────────────────────────────────────
 node_modules/
