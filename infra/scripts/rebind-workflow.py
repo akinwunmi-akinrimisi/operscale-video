@@ -176,6 +176,65 @@ def rebind_postgrest_schema_headers(workflow: dict) -> None:
             params['sendHeaders'] = True
 
 
+def rebind_supabase_credtype_to_headers(workflow: dict) -> None:
+    """Convert HTTP-request nodes that use `authentication: genericCredentialType`
+    + `genericAuthType: httpHeaderAuth` into the inline-headerParameters pattern.
+
+    VG's WF_KEN_BURNS (and likely others) was authored to reference an n8n-stored
+    httpHeaderAuth credential. After cherry-picking the workflow JSON the
+    credential reference (`credentials.httpHeaderAuth.id`) is missing, so the
+    node activates with `Credentials not found` and the request fails before
+    leaving n8n.
+
+    Other OPS workflows (OPS_TTS_AUDIO, OPS_IMAGE_GENERATION) use the simpler
+    "auth: none + inline headerParameters with apikey + Authorization expressions"
+    pattern that doesn't depend on a credential UUID being preserved across
+    instances. This pass converts the genericCredentialType pattern to that
+    inline pattern, but only for nodes hitting the Supabase REST URL — leaves
+    other genericCredentialType nodes (e.g., OAuth-protected services that
+    really need a credential) alone.
+
+    Idempotent: nodes already on the inline pattern (auth=none with apikey
+    header set) are not touched.
+    """
+    nodes = workflow.get('nodes', []) if isinstance(workflow, dict) else []
+    for node in nodes:
+        if not isinstance(node, dict):
+            continue
+        if node.get('type') != HTTP_REQUEST_NODE_TYPE:
+            continue
+        params = node.get('parameters')
+        if not isinstance(params, dict):
+            continue
+        if params.get('authentication') != 'genericCredentialType':
+            continue
+        if params.get('genericAuthType') != 'httpHeaderAuth':
+            continue
+        url = params.get('url') or ''
+        # Only convert nodes that target Supabase (env-var URL or rest/v1 path);
+        # don't touch generic external API calls that legitimately use stored creds.
+        if not isinstance(url, str) or ('SUPABASE_URL' not in url and POSTGREST_PATH_FRAGMENT not in url):
+            continue
+        # If the node already has a credentials block resolving to a real id, skip.
+        if isinstance(node.get('credentials'), dict) and node['credentials']:
+            continue
+        # Convert: drop auth fields, ensure inline headers
+        params.pop('authentication', None)
+        params.pop('genericAuthType', None)
+        params['authentication'] = 'none'
+        hp = params.setdefault('headerParameters', {})
+        if not isinstance(hp, dict):
+            hp = {}
+            params['headerParameters'] = hp
+        plist = hp.setdefault('parameters', [])
+        if not isinstance(plist, list):
+            plist = []
+            hp['parameters'] = plist
+        _ensure_header(plist, 'apikey', '={{ $env.SUPABASE_ANON_KEY }}')
+        _ensure_header(plist, 'Authorization', '=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}')
+        params['sendHeaders'] = True
+
+
 SUBWORKFLOW_URL_PATTERN = re.compile(r'(\}\})/(?!operscale/)([a-zA-Z][\w/-]*)')
 
 
@@ -269,6 +328,9 @@ def rebind(workflow: dict) -> dict:
     # PostgREST schema headers (PostgREST defaults to first schema in PGRST_DB_SCHEMAS;
     # without these headers our rest/v1/<table> calls would land in public.*)
     rebind_postgrest_schema_headers(out)
+    # Convert genericCredentialType to inline headers for Supabase URLs (saves
+    # the missing-credential error when the cred UUID is lost on cherry-pick)
+    rebind_supabase_credtype_to_headers(out)
     # Sub-workflow Fire URLs ({{ $env.N8N_WEBHOOK_BASE }}/<path> → /operscale/<path>)
     rebind_subworkflow_fire_urls(out)
     # Strip runtime-metadata fields that n8n public API POST rejects

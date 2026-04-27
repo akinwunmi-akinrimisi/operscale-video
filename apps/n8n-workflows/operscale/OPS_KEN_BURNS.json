@@ -38,8 +38,6 @@
       "parameters": {
         "method": "GET",
         "url": "={{$env.SUPABASE_URL}}/rest/v1/scenes?video_id=eq.{{$json.body.video_id}}&clip_status=eq.pending&image_url=not.is.null&select=id,scene_number,image_url,zoom_direction,color_mood,selective_color_element,audio_duration_ms&order=scene_number.asc",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
         "options": {
           "response": {
             "response": {
@@ -56,10 +54,19 @@
             {
               "name": "Content-Profile",
               "value": "operscale"
+            },
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_ANON_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
             }
           ]
         },
-        "sendHeaders": true
+        "sendHeaders": true,
+        "authentication": "none"
       }
     },
     {
@@ -119,7 +126,7 @@
       ],
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "// Ken Burns: download image \u2192 run FFmpeg \u2192 return clip path\nconst scene = $input.first().json;\nconst topicId = $('Webhook Trigger').first().json.body.video_id;\nconst sceneNum = String(scene.scene_number).padStart(3, '0');\nconst duration = scene.audio_duration_ms ? (scene.audio_duration_ms / 1000).toFixed(1) : '6';\nconst zoomDir = scene.zoom_direction || 'in';\nconst colorMood = scene.color_mood || 'full_natural';\nconst skipColor = scene.selective_color_element ? '1' : '0';\nconst imgPath = `/tmp/operscale-production/kb_${topicId}_${sceneNum}.png`;\nconst clipPath = `/tmp/operscale-production/kb_${topicId}_${sceneNum}.mp4`;\n\n// Download image\nconst { execSync } = require('child_process');\ntry {\n  execSync(`curl -sL -o \"${imgPath}\" \"${scene.image_url}\"`, { timeout: 30000 });\n} catch (e) {\n  return [{ json: { success: false, scene_id: scene.id, scene_number: scene.scene_number, error: 'Image download failed: ' + e.message } }];\n}\n\n// Run Ken Burns\ntry {\n  const cmd = `bash /tmp/operscale-production/ken_burns.sh \"${imgPath}\" ${duration} ${zoomDir} ${colorMood} \"${clipPath}\" ${skipColor}`;\n  execSync(cmd, { timeout: 120000 });\n} catch (e) {\n  // Cleanup\n  try { execSync(`rm -f \"${imgPath}\"`); } catch(_) {}\n  return [{ json: { success: false, scene_id: scene.id, scene_number: scene.scene_number, error: 'Ken Burns failed: ' + e.message } }];\n}\n\n// Cleanup input image\ntry { execSync(`rm -f \"${imgPath}\"`); } catch(_) {}\n\nreturn [{ json: {\n  success: true,\n  scene_id: scene.id,\n  scene_number: scene.scene_number,\n  clip_path: clipPath,\n  duration: parseFloat(duration),\n  zoom_direction: zoomDir,\n  color_mood: colorMood,\n} }];"
+        "jsCode": "// Ken Burns: download image → run FFmpeg → return clip path\nconst scene = $input.first().json;\nconst topicId = $('Webhook Trigger').first().json.body.video_id;\nconst sceneNum = String(scene.scene_number).padStart(3, '0');\nconst duration = scene.audio_duration_ms ? (scene.audio_duration_ms / 1000).toFixed(1) : '6';\nconst zoomDir = scene.zoom_direction || 'in';\nconst colorMood = scene.color_mood || 'full_natural';\nconst skipColor = scene.selective_color_element ? '1' : '0';\nconst imgPath = `/tmp/operscale-production/kb_${topicId}_${sceneNum}.png`;\nconst clipPath = `/tmp/operscale-production/kb_${topicId}_${sceneNum}.mp4`;\n\n// Download image\nconst { execSync } = require('child_process');\ntry {\n  execSync(`curl -sL -o \"${imgPath}\" \"${scene.image_url}\"`, { timeout: 30000 });\n} catch (e) {\n  return [{ json: { success: false, scene_id: scene.id, scene_number: scene.scene_number, error: 'Image download failed: ' + e.message } }];\n}\n\n// Run Ken Burns\ntry {\n  const cmd = `bash /tmp/operscale-production/ken_burns.sh \"${imgPath}\" ${duration} ${zoomDir} ${colorMood} \"${clipPath}\" ${skipColor}`;\n  execSync(cmd, { timeout: 120000 });\n} catch (e) {\n  // Cleanup\n  try { execSync(`rm -f \"${imgPath}\"`); } catch(_) {}\n  return [{ json: { success: false, scene_id: scene.id, scene_number: scene.scene_number, error: 'Ken Burns failed: ' + e.message } }];\n}\n\n// Cleanup input image\ntry { execSync(`rm -f \"${imgPath}\"`); } catch(_) {}\n\nreturn [{ json: {\n  success: true,\n  scene_id: scene.id,\n  scene_number: scene.scene_number,\n  clip_path: clipPath,\n  duration: parseFloat(duration),\n  zoom_direction: zoomDir,\n  color_mood: colorMood,\n} }];"
       }
     },
     {
@@ -167,8 +174,6 @@
       "parameters": {
         "method": "PATCH",
         "url": "={{$env.SUPABASE_URL}}/rest/v1/scenes?id=eq.{{$json.scene_id}}",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\"clip_status\": \"generated\", \"video_url\": \"file:///tmp/operscale-production/kb_\" + $json.scene_id + \".mp4\"}",
@@ -189,10 +194,19 @@
             {
               "name": "Content-Profile",
               "value": "operscale"
+            },
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_ANON_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
             }
           ]
         },
-        "sendHeaders": true
+        "sendHeaders": true,
+        "authentication": "none"
       }
     },
     {
@@ -207,8 +221,6 @@
       "parameters": {
         "method": "POST",
         "url": "={{$env.SUPABASE_URL}}/rest/v1/production_logs",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\"video_id\": \"\" + $('Webhook Trigger').first().json.body.video_id + \"\", \"stage\": \"ken_burns\", \"scene_number\": \" + $json.scene_number + \", \"action\": \"ken_burns_generate\", \"status\": \"failed\", \"error_message\": \"\" + $json.error + \"\"}",
@@ -229,10 +241,19 @@
             {
               "name": "Content-Profile",
               "value": "operscale"
+            },
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_ANON_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
             }
           ]
         },
-        "sendHeaders": true
+        "sendHeaders": true,
+        "authentication": "none"
       }
     },
     {
@@ -258,8 +279,6 @@
       "parameters": {
         "method": "PATCH",
         "url": "={{$env.SUPABASE_URL}}/rest/v1/videos?id=eq.{{$('Webhook Trigger').first().json.body.video_id}}",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\"pipeline_stage\": \"ken_burns\", \"ken_burns_progress\": \"complete\"}",
@@ -280,10 +299,19 @@
             {
               "name": "Content-Profile",
               "value": "operscale"
+            },
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_ANON_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
             }
           ]
         },
-        "sendHeaders": true
+        "sendHeaders": true,
+        "authentication": "none"
       }
     },
     {
@@ -298,8 +326,7 @@
       "parameters": {
         "method": "POST",
         "url": "http://localhost:5678/webhook/operscale/production/captions-assembly",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "authentication": "none",
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
@@ -311,6 +338,10 @@
             {
               "name": "Authorization",
               "value": "=Bearer {{$env.DASHBOARD_API_TOKEN}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
             }
           ]
         },
