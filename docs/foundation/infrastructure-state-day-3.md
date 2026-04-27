@@ -142,9 +142,30 @@ Table count: 121
 
 Realtime publication tables: ab_test_variants, ab_tests, analysis_groups, audience_insights, channel_analyses, coach_messages, coach_sessions, comments, competitor_alerts, competitor_channels, competitor_videos, cost_calculator_snapshots, daily_ideas, discovered_channels, keywords, niche_health_history, niche_viability_reports, pps_config, production_log, production_logs, projects, research_categories, research_runs, revenue_attribution, scenes, scheduled_posts, shorts, style_profiles, system_prompts, topic_keywords, topics, yt_discovery_runs, yt_video_analyses
 
-No collision detected in the Realtime publication: none of our 12 expected table names (`customer_orders`, `videos`, `assets`, `events`, `agent_runs`, `gates`, `outbox`, `paystack_events`, `delivery_log`, `niches`, `tier_specs`, and the storage-policy targets from migration 004) appear in the publication list. The 33 published tables are all VG/shared-VPS application tables with clearly distinct naming conventions.
+> **Correction — 2026-04-27, post-recon (commits `9c3d6c3`, `3e58c92`):** the original analysis below was wrong on two counts. The 12-table list was guessed from CLAUDE.md prose context rather than extracted from the actual migration files, and the "no collision detected" conclusion was based on that wrong list. A grep against `supabase/migrations/*.sql` produced the **real** 12 table names — `customers, briefs, orders, videos, scenes, production_registers, prompt_configs, production_log, payments, gate_decisions, order_consent, llm_calls` — and a follow-up `psql` query against the live VPS DB found **four collisions** in `public.*`:
+>
+> | Our table | VG row count in `public.*` | In `supabase_realtime`? |
+> | --- | --- | --- |
+> | `scenes` | 1,140 | yes |
+> | `production_log` | 11,329 | yes |
+> | `production_registers` | 5 | no |
+> | `prompt_configs` | 13 | no |
+>
+> The other 8 names (`customers`, `briefs`, `orders`, `videos`, `payments`, `gate_decisions`, `order_consent`, `llm_calls`) had no collision in `public.*`.
+>
+> **Resolution.** `001/002/003` were patched (commit `9c3d6c3`) to create a dedicated `operscale` schema and qualify all 12 tables, every `REFERENCES`, every `CREATE INDEX`, every `ALTER PUBLICATION ADD TABLE`, every `ALTER TABLE REPLICA IDENTITY FULL`, and every RLS DO-block `EXECUTE format()`. VG's `public.scenes` and `public.production_log` are untouched and continue to serve VG. The Realtime publication will include `operscale.{orders,videos,scenes,production_log,gate_decisions}` — distinct objects from VG's `public.{scenes,production_log}` already in the publication. `apply-migrations.sh` (commit `3e58c92`) verifies counts against `information_schema.tables WHERE table_schema='operscale'` and asserts `public.scenes` row count is unchanged after apply. Storage buckets (`004`) needed no change: Supabase Storage uses its own `storage.*` schema and a live bucket-ID query confirmed no name collision.
+>
+> **Verdict adjustment.** The original YELLOW-with-no-blockers verdict was issued against the wrong table list. With the corrected analysis, the original recon should have read **RED — collision blocker** at recon time. After the schema-isolation fix the working state is back to GREEN-equivalent: zero collision in `operscale.*`, VG `public.*` untouched, ready for ★3 named gate.
+>
+> **Process learning.** Future recon-doc collision checks must extract the table-name list from the actual migration files (`grep "^CREATE TABLE" supabase/migrations/*.sql`) rather than from prose context. The `recon-vps.sh` script's section 7 (Realtime publication enumeration) was correct; only the comparison list provided to the spec reviewer was wrong.
 
-**Limitation**: the recon script captures only the table count (121) for the full public schema, not an enumeration of all names. A complete collision check would require `SELECT tablename FROM information_schema.tables WHERE table_schema='public'`. Given the naming evidence from the Realtime publication and the VG codebase context, the collision risk is low, but Day 5 ★3 migration should include a pre-flight `SELECT` asserting none of our 12 names exist before applying the DDL.
+---
+
+**Original analysis (preserved for audit trail — SUPERSEDED by the Correction above):**
+
+~~No collision detected in the Realtime publication: none of our 12 expected table names (`customer_orders`, `videos`, `assets`, `events`, `agent_runs`, `gates`, `outbox`, `paystack_events`, `delivery_log`, `niches`, `tier_specs`, and the storage-policy targets from migration 004) appear in the publication list. The 33 published tables are all VG/shared-VPS application tables with clearly distinct naming conventions.~~
+
+~~**Limitation**: the recon script captures only the table count (121) for the full public schema, not an enumeration of all names. A complete collision check would require `SELECT tablename FROM information_schema.tables WHERE table_schema='public'`. Given the naming evidence from the Realtime publication and the VG codebase context, the collision risk is low, but Day 5 ★3 migration should include a pre-flight `SELECT` asserting none of our 12 names exist before applying the DDL.~~
 
 ---
 
@@ -200,8 +221,9 @@ The VPS is a shared host with multiple unrelated projects. The following contain
 ## Decisions deferred to later Days
 
 - **Day 4**: Operscale containers compose file — bind mount paths confirmed against this recon. Avoid host ports 80, 443, 3001, 3002, 3003, 8080. Mount application data under `/docker/operscale-video-ads/` for isolation.
-- **Day 5**: ★3 migration apply —
-  1. **Pre-flight collision check**: Add a `DO $$ BEGIN IF (SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name = ANY(ARRAY['customer_orders','videos','assets','events','agent_runs','gates','outbox','paystack_events','delivery_log','niches','tier_specs'])) > 0 THEN RAISE EXCEPTION 'Collision detected'; END IF; END $$;` block before the DDL to guard against a surprise collision in the 121-table public schema not visible from the Realtime publication alone.
-  2. **RLS DO-block isolation**: Confirm the RLS-policy DO blocks in migrations 001 and 004 reference only our newly-created tables — they must NOT touch RLS on any existing VG table. Verify by reading each `ALTER TABLE … ENABLE ROW LEVEL SECURITY` and `CREATE POLICY` statement against the table-collision check above.
+- **Day 5**: ★3 migration apply — collision was found and resolved via schema isolation (commit `9c3d6c3`). `apply-migrations.sh` (commit `3e58c92`) targets `operscale.*` everywhere and includes:
+  1. **Pre-flight schema check** — counts existing `operscale.*` tables matching our 12 names. First run = 0; idempotent re-run = 12; anything else = unexpected (investigate before re-applying).
+  2. **RLS DO-block isolation** — `001`'s RLS DO-block now uses `EXECUTE format('ALTER TABLE operscale.%I ...', t)`, structurally unable to touch any `public.*` table. Verifiable with `git diff 9c3d6c3 -- supabase/migrations/001_initial.sql` (every `EXECUTE format()` reference is schema-qualified).
+  3. **Post-apply sanity** — script asserts `public.scenes` row count after the apply; non-zero means we did not silently merge into VG's table.
 - **Day 9**: ★5 caption-burn path strategy — symlink is the recommended default. `/data/n8n-production` is world-writable, caption-burn service is healthy at `:9998`. Create `/data/n8n-production/operscale/` as the job output root and symlink as needed.
 - **Evolution API**: Confirm with project owner whether `evolution-api` container on this VPS is the intended integration target for WhatsApp delivery, or whether a separate instance is required.
