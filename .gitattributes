@@ -1,0 +1,18 @@
+# Ensure shell scripts and Linux-bound files use LF line endings,
+# regardless of the developer's local OS / git config.
+*.sh    text eol=lf
+*.bash  text eol=lf
+
+# SQL migrations run inside the Postgres container — keep LF.
+*.sql   text eol=lf
+
+# YAML configs consumed by Docker / Traefik / n8n — keep LF.
+*.yml   text eol=lf
+*.yaml  text eol=lf
+
+# Mermaid diagrams (rendered by tools that prefer LF)
+*.mmd   text eol=lf
+
+# Default for everything else: let git auto-detect text vs binary,
+# normalize on commit, but do not force LF on Markdown / docs.
+*       text=auto

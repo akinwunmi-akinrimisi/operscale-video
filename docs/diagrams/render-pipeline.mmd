@@ -1,0 +1,84 @@
+---
+title: Operscale Video Ads — Render Pipeline (Vision GridAI fork + HeyGen branch)
+---
+%%{init: {'theme':'base', 'themeVariables': { 'primaryColor':'#f4f4f4', 'lineColor':'#333', 'fontFamily':'Inter, sans-serif', 'fontSize':'14px'}}}%%
+flowchart TB
+
+    %% ==================================================
+    %% Inputs
+    %% ==================================================
+    Script[/"<b>Approved Script</b><br/>from Gate 2<br/>+ register choice<br/>+ niche caption style"/]:::input
+
+    Script --> Segmenter{"<b>Segment classifier</b><br/>per scene:<br/>documentary or avatar?"}
+
+    %% ==================================================
+    %% AVATAR LANE (Creative Pod only)
+    %% ==================================================
+    Segmenter -->|"avatar segment<br/>(Creative Pod)"| HeyGenGen["<b>HeyGen Video API</b><br/>POST /v2/video/generate<br/>avatar_id + audio input"]:::heygen
+    HeyGenGen --> HeyGenPoll["<b>Poll status</b><br/>every 60s, max 20 attempts"]:::heygen
+    HeyGenPoll --> HeyGenAsset["<b>Avatar segment .mp4</b><br/>30 fps, 24kHz audio"]:::asset
+
+    %% ==================================================
+    %% DOCUMENTARY LANE — VG render core (forked, unchanged)
+    %% ==================================================
+    Segmenter -->|"documentary segment<br/>(all tiers)"| TTS["<b>WF_TTS_AUDIO</b><br/>(4L2j3aU2WGnfcvvj)<br/>Google Cloud Chirp 3 HD"]:::n8n
+    TTS --> SrtScale["<b>SRT timestamp scaling</b><br/>(audio is master clock —<br/>VG fork manual gotcha)"]:::python
+    SrtScale --> WordTs["<b>Whisper large-v3</b><br/>word-level timestamps<br/>for caption alignment"]:::python
+
+    Segmenter -->|"per scene"| ImgGen["<b>WF_IMAGE_GENERATION</b><br/>(ScP3yoaeuK7BwpUo)<br/>fal.ai Seedream"]:::n8n
+    ImgGen --> SbWrite1["<b>scene-by-scene<br/>Supabase write</b><br/>(VG fork manual gotcha)"]:::supabase
+
+    SbWrite1 --> KenBurns["<b>WF_KEN_BURNS</b><br/>FFmpeg zoompan +<br/>color mood profile<br/>(7 profiles available)"]:::n8n
+    KenBurns --> SceneClip["<b>Scene clip .mp4</b><br/>image + Ken Burns +<br/>color grade"]:::asset
+
+    WordTs --> CapAss["<b>WF_CAPTIONS_ASSEMBLY</b><br/>(Fhdy66BLRh7rAwTi)<br/>47 nodes, 3-layer<br/>crash prevention"]:::n8n
+    CapAss --> AssGen["<b>generate_kinetic_ass.py</b><br/>two-tier kinetic typography:<br/>white connectors +<br/>oversized red emphasis"]:::python
+    AssGen --> AssFile["<b>captions.ass</b><br/>(ASS subtitle format,<br/>niche-styled per tier)"]:::asset
+
+    %% ==================================================
+    %% Caption burn — host-side service
+    %% ==================================================
+    SceneClip --> CapBurn["<b>caption_burn_service.py</b><br/>(port 9998, host-side,<br/>3-hour timeout)"]:::python
+    AssFile --> CapBurn
+    CapBurn --> BurnedClip["<b>Burned clip .mp4</b><br/>captions hardcoded<br/>via FFmpeg subtitles filter"]:::asset
+
+    %% ==================================================
+    %% Documentary segment assembly
+    %% ==================================================
+    BurnedClip --> XfadeConcat["<b>FFmpeg xfade chain</b><br/>scene-to-scene transitions<br/>(register-defined)"]:::python
+    XfadeConcat --> Music["<b>Music mix</b><br/>amix normalize=0<br/>volume=0.12<br/>(VG fork manual gotchas)"]:::python
+    Music --> DocSegment["<b>Documentary segment .mp4</b><br/>30 fps, 48kHz audio"]:::asset
+
+    %% ==================================================
+    %% Final concat (avatar + documentary)
+    %% ==================================================
+    HeyGenAsset --> SegConcat["<b>segment_concat.py</b><br/>FFmpeg concat demuxer<br/>(NOT concat protocol —<br/>see heygen-integration.md)<br/>-c:v libx264 -c:a aac -ar 48000"]:::python
+    DocSegment --> SegConcat
+
+    SegConcat --> FpsCheck{"<b>fps assert</b><br/>ffprobe all inputs<br/>abort if mismatch"}:::python
+    FpsCheck -->|"all 30fps"| Final["<b>final.mp4</b><br/>delivered to customer"]:::output
+    FpsCheck -->|"mismatch"| Abort["<b>ABORT</b><br/>route to founder_takeover"]:::error
+
+    %% ==================================================
+    %% Persistence
+    %% ==================================================
+    DocSegment -.->|"production_log row<br/>per scene"| Supabase[("<b>Supabase</b><br/>scenes table<br/>production_log table<br/>REPLICA IDENTITY FULL")]:::supabase
+    HeyGenAsset -.->|"production_log row<br/>per HeyGen segment"| Supabase
+    Final -.->|"videos.final_url"| Supabase
+
+    %% ==================================================
+    %% Resume / retry
+    %% ==================================================
+    Resume["<b>Resume on crash</b><br/>read production_log,<br/>skip completed scenes,<br/>resume from last node"]:::python -.-> Segmenter
+
+    %% ==================================================
+    %% Styles
+    %% ==================================================
+    classDef input fill:#fff7d6,stroke:#b58900,stroke-width:2px,color:#333
+    classDef output fill:#d4edda,stroke:#155724,stroke-width:2px,color:#155724
+    classDef n8n fill:#ffe6e6,stroke:#cc0000,stroke-width:1px,color:#333
+    classDef python fill:#e6f0ff,stroke:#0066cc,stroke-width:1px,color:#333
+    classDef supabase fill:#e8f5e9,stroke:#2e7d32,stroke-width:1px,color:#333
+    classDef heygen fill:#f3e5f5,stroke:#6a1b9a,stroke-width:1px,color:#333
+    classDef asset fill:#f5f5f5,stroke:#666,stroke-width:1px,color:#333
+    classDef error fill:#ffcdd2,stroke:#b71c1c,stroke-width:2px,color:#b71c1c

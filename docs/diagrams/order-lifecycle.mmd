@@ -1,0 +1,120 @@
+---
+title: Operscale Video Ads — Order Lifecycle
+---
+%%{init: {'theme':'base', 'themeVariables': { 'primaryColor':'#f4f4f4', 'lineColor':'#333', 'fontFamily':'Inter, sans-serif'}}}%%
+stateDiagram-v2
+
+    [*] --> intake_received: customer submits brief\n(web form / WhatsApp)
+
+    %% ==================================================
+    %% GATE 0 — Brief sanity check
+    %% ==================================================
+    intake_received --> qualifying: agent validates shape
+    qualifying --> gate_0: brief enriched, niche checked
+
+    state gate_0 <<choice>>
+    gate_0 --> rejected_niche: niche on restricted list\n(see niche-briefs/restricted.md)
+    gate_0 --> awaiting_clarification: brief incomplete
+    gate_0 --> quote_sent: APPROVE
+
+    awaiting_clarification --> qualifying: customer responds
+    awaiting_clarification --> abandoned_no_response: 72h timeout
+
+    %% ==================================================
+    %% Payment flow
+    %% ==================================================
+    quote_sent --> awaiting_payment: Paystack link issued
+
+    state awaiting_payment <<fork>>
+    awaiting_payment --> follow_up_24h: no payment 24h
+    awaiting_payment --> payment_received: Paystack webhook verified
+    follow_up_24h --> awaiting_payment
+    awaiting_payment --> abandoned_no_payment: no payment 72h
+
+    %% ==================================================
+    %% GATE 1 — Angle approval
+    %% ==================================================
+    payment_received --> deep_analysis: agent enriches brief\n(competitor scan, audience, angle)
+    deep_analysis --> gate_1: 3 angles drafted
+
+    state gate_1 <<choice>>
+    gate_1 --> deep_analysis: REVISE
+    gate_1 --> founder_takeover: ESCALATE
+    gate_1 --> generating_script: APPROVE\n(angle locked)
+
+    %% ==================================================
+    %% GATE 2 — Script approval
+    %% ==================================================
+    generating_script --> gate_2: script drafted
+
+    state gate_2 <<choice>>
+    gate_2 --> generating_script: REVISE\n(max 2 free)
+    gate_2 --> revision_paid: REVISE (paid, ₦25K)
+    gate_2 --> founder_takeover: ESCALATE
+    gate_2 --> avatar_consent_check: APPROVE\n(if Creative Pod + avatar opt-in)
+    gate_2 --> production_documentary: APPROVE\n(documentary lane)
+
+    revision_paid --> generating_script: payment received
+
+    %% ==================================================
+    %% AVATAR BRANCH (Creative Pod only)
+    %% ==================================================
+    avatar_consent_check --> consent_signed: customer signs\nNotion consent form
+    avatar_consent_check --> documentary_fallback: customer declines\n(no price change)
+    avatar_consent_check --> abandoned_consent_timeout: no signature 48h
+
+    consent_signed --> creating_avatar: HeyGen photo avatar API
+    creating_avatar --> gate_3_bis: avatar generated
+    creating_avatar --> avatar_creation_failed: HeyGen error / timeout
+
+    avatar_creation_failed --> creating_avatar: retry (max 1)
+    avatar_creation_failed --> documentary_fallback: retries exhausted
+
+    %% ==================================================
+    %% GATE 3-bis — Avatar quality check (branch gate)
+    %% ==================================================
+    state gate_3_bis <<choice>>
+    gate_3_bis --> creating_avatar: REGENERATE\n(max 1)
+    gate_3_bis --> documentary_fallback: REJECT QUALITY\n(graceful degrade, same price)
+    gate_3_bis --> production_avatar: APPROVE
+
+    %% ==================================================
+    %% Production lanes
+    %% ==================================================
+    production_documentary --> rendering_documentary: VG render core\n(TTS + image gen + Ken Burns +\ncaptions + music)
+    production_avatar --> rendering_avatar: HeyGen avatar segments\n+ VG documentary segments\n(parallel fan-out)
+    documentary_fallback --> production_documentary
+
+    rendering_documentary --> gate_3: render complete
+    rendering_avatar --> rendering_avatar_concat: both lanes done
+    rendering_avatar_concat --> gate_3: FFmpeg segment concat done
+
+    rendering_documentary --> render_failed: render error
+    rendering_avatar --> render_failed: render error
+
+    render_failed --> rendering_documentary: retry (max 2)
+    render_failed --> founder_takeover: retries exhausted
+
+    %% ==================================================
+    %% GATE 3 — Final render approval
+    %% ==================================================
+    state gate_3 <<choice>>
+    gate_3 --> generating_script: RESTART SCRIPT\n(major rewrite needed)
+    gate_3 --> rendering_documentary: RE-RENDER\n(notes attached)
+    gate_3 --> founder_takeover: ESCALATE
+    gate_3 --> delivering: APPROVE
+
+    %% ==================================================
+    %% Delivery
+    %% ==================================================
+    delivering --> delivered: video sent\n(email + WhatsApp link)
+    delivered --> [*]
+
+    %% ==================================================
+    %% Terminal states
+    %% ==================================================
+    rejected_niche --> [*]
+    abandoned_no_response --> [*]
+    abandoned_no_payment --> [*]
+    abandoned_consent_timeout --> [*]
+    founder_takeover --> [*]: handled out-of-band\n(not a workflow state)

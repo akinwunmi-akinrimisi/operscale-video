@@ -1,0 +1,11 @@
+# Traefik labels for the Operscale web container.
+# Paste these into /docker/operscale-video-ads/docker-compose.yml under the `web` service.
+# Brand domain locked: plovera.shop (per ADR 0017).
+
+labels:
+  - "traefik.enable=true"
+  - "traefik.http.routers.operscale-web.rule=Host(`plovera.shop`) || Host(`www.plovera.shop`)"
+  - "traefik.http.routers.operscale-web.tls=true"
+  - "traefik.http.routers.operscale-web.tls.certresolver=letsencrypt"
+  - "traefik.http.routers.operscale-web.entrypoints=websecure"
+  - "traefik.http.services.operscale-web.loadbalancer.server.port=3000"

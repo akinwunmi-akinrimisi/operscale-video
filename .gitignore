@@ -1,0 +1,64 @@
+# ─── Secrets ─────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+!.env.agent.example
+!.env.web.example
+*.pem
+*.key
+keys_new.env
+operscale_keys.env
+
+# ─── Node / Next.js ──────────────────────────────────────────
+node_modules/
+.next/
+out/
+.vercel/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ─── Python ──────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ─── Editors / OS ───────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# ─── Build artefacts ────────────────────────────────────────
+dist/
+build/
+*.tsbuildinfo
+.turbo/
+
+# ─── Local data + scratch ───────────────────────────────────
+data/*
+!data/.gitkeep
+mnt/
+*.log
+
+# ─── Vendored snapshot (we keep the placeholder + VENDORING.md only) ─
+_vendored_for_reference/*
+!_vendored_for_reference/VENDORING.md
+!_vendored_for_reference/.gitkeep
+
+# ─── Historical planning bundles (kept on disk, not in git) ─
+_archive/
+
+# ─── n8n local creds ────────────────────────────────────────
+.n8n/
