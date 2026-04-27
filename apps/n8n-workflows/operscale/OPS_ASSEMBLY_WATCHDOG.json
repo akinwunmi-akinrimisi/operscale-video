@@ -133,6 +133,14 @@
             {
               "name": "Prefer",
               "value": "return=minimal"
+            },
+            {
+              "name": "Accept-Profile",
+              "value": "operscale"
+            },
+            {
+              "name": "Content-Profile",
+              "value": "operscale"
             }
           ]
         },

@@ -115,6 +115,67 @@ def rebind_webhook_node_paths(workflow: dict) -> None:
             params['path'] = WEBHOOK_PATH_NS + current.lstrip('/')
 
 
+HTTP_REQUEST_NODE_TYPE = 'n8n-nodes-base.httpRequest'
+POSTGREST_PATH_FRAGMENT = '/rest/v1/'
+POSTGREST_SCHEMA = 'operscale'
+# Header name → applies-to HTTP methods.
+# PostgREST honors Accept-Profile on reads (GET/HEAD), Content-Profile on writes
+# (POST/PATCH/PUT/DELETE). Adding both is harmless and keeps the workflow simple
+# if the method ever changes during edits.
+POSTGREST_PROFILE_HEADERS = ('Accept-Profile', 'Content-Profile')
+
+
+def _ensure_header(header_list: list, name: str, value: str) -> None:
+    """Append name=value if no entry with that name already exists. Idempotent."""
+    for h in header_list:
+        if isinstance(h, dict) and (h.get('name') or '').strip().lower() == name.lower():
+            return  # already present, leave whatever value it has
+    header_list.append({'name': name, 'value': value})
+
+
+def rebind_postgrest_schema_headers(workflow: dict) -> None:
+    """Add Accept-Profile + Content-Profile = operscale to every HTTP node hitting PostgREST.
+
+    Without this, calls to ${SUPABASE_URL}/rest/v1/<table> default to the public
+    schema (the first entry in PGRST_DB_SCHEMAS). With the operscale schema-isolation
+    fix, that means OUR workflows would silently read/write VG's public.scenes and
+    public.production_log — a data-corruption hazard.
+
+    Idempotent: headers already present are left untouched.
+    """
+    nodes = workflow.get('nodes', []) if isinstance(workflow, dict) else []
+    for node in nodes:
+        if not isinstance(node, dict):
+            continue
+        if node.get('type') != HTTP_REQUEST_NODE_TYPE:
+            continue
+        params = node.get('parameters')
+        if not isinstance(params, dict):
+            continue
+        url = params.get('url') or ''
+        if not isinstance(url, str) or POSTGREST_PATH_FRAGMENT not in url:
+            continue
+
+        # n8n's headerParameters has shape: {parameters: [{name, value}, ...]}
+        hp = params.setdefault('headerParameters', {})
+        if not isinstance(hp, dict):
+            hp = {}
+            params['headerParameters'] = hp
+        plist = hp.setdefault('parameters', [])
+        if not isinstance(plist, list):
+            plist = []
+            hp['parameters'] = plist
+
+        for hname in POSTGREST_PROFILE_HEADERS:
+            _ensure_header(plist, hname, POSTGREST_SCHEMA)
+
+        # Some n8n versions also key on params['sendHeaders'] = True.
+        # Set it so the headers actually get sent (default is False on freshly-imported
+        # nodes if no headers were originally configured).
+        if 'sendHeaders' in params or plist:
+            params['sendHeaders'] = True
+
+
 def rebind(workflow: dict) -> dict:
     """Apply rebind transforms; return new dict (original untouched)."""
     out = transform_value(workflow)
@@ -124,6 +185,9 @@ def rebind(workflow: dict) -> dict:
             out['name'] = pattern.sub(replacement, out['name'])
     # Structural webhook-path rebind (n8n stores paths bare; regex on text doesn't catch)
     rebind_webhook_node_paths(out)
+    # PostgREST schema headers (PostgREST defaults to first schema in PGRST_DB_SCHEMAS;
+    # without these headers our rest/v1/<table> calls would land in public.*)
+    rebind_postgrest_schema_headers(out)
     return out
 
 

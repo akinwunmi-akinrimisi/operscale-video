@@ -132,6 +132,14 @@
             {
               "name": "Prefer",
               "value": "return=minimal"
+            },
+            {
+              "name": "Accept-Profile",
+              "value": "operscale"
+            },
+            {
+              "name": "Content-Profile",
+              "value": "operscale"
             }
           ]
         },
@@ -179,6 +187,14 @@
             {
               "name": "Authorization",
               "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Accept-Profile",
+              "value": "operscale"
+            },
+            {
+              "name": "Content-Profile",
+              "value": "operscale"
             }
           ]
         },
@@ -219,6 +235,14 @@
             {
               "name": "Authorization",
               "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Accept-Profile",
+              "value": "operscale"
+            },
+            {
+              "name": "Content-Profile",
+              "value": "operscale"
             }
           ]
         },
@@ -251,6 +275,14 @@
             {
               "name": "Content-Type",
               "value": "application/json"
+            },
+            {
+              "name": "Accept-Profile",
+              "value": "operscale"
+            },
+            {
+              "name": "Content-Profile",
+              "value": "operscale"
             }
           ]
         },
@@ -439,6 +471,14 @@
             {
               "name": "Prefer",
               "value": "return=minimal"
+            },
+            {
+              "name": "Accept-Profile",
+              "value": "operscale"
+            },
+            {
+              "name": "Content-Profile",
+              "value": "operscale"
             }
           ]
         },
@@ -487,6 +527,14 @@
             {
               "name": "Prefer",
               "value": "return=minimal"
+            },
+            {
+              "name": "Accept-Profile",
+              "value": "operscale"
+            },
+            {
+              "name": "Content-Profile",
+              "value": "operscale"
             }
           ]
         },
@@ -676,6 +724,14 @@
             {
               "name": "Prefer",
               "value": "return=representation"
+            },
+            {
+              "name": "Accept-Profile",
+              "value": "operscale"
+            },
+            {
+              "name": "Content-Profile",
+              "value": "operscale"
             }
           ]
         },
@@ -711,6 +767,14 @@
             {
               "name": "Content-Type",
               "value": "application/json"
+            },
+            {
+              "name": "Accept-Profile",
+              "value": "operscale"
+            },
+            {
+              "name": "Content-Profile",
+              "value": "operscale"
             }
           ]
         },
@@ -766,6 +830,14 @@
             {
               "name": "Authorization",
               "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Accept-Profile",
+              "value": "operscale"
+            },
+            {
+              "name": "Content-Profile",
+              "value": "operscale"
             }
           ]
         },
@@ -887,6 +959,14 @@
             {
               "name": "Prefer",
               "value": "return=representation"
+            },
+            {
+              "name": "Accept-Profile",
+              "value": "operscale"
+            },
+            {
+              "name": "Content-Profile",
+              "value": "operscale"
             }
           ]
         },
@@ -922,6 +1002,14 @@
             {
               "name": "Content-Type",
               "value": "application/json"
+            },
+            {
+              "name": "Accept-Profile",
+              "value": "operscale"
+            },
+            {
+              "name": "Content-Profile",
+              "value": "operscale"
             }
           ]
         },
@@ -970,6 +1058,14 @@
             {
               "name": "Prefer",
               "value": "return=representation"
+            },
+            {
+              "name": "Accept-Profile",
+              "value": "operscale"
+            },
+            {
+              "name": "Content-Profile",
+              "value": "operscale"
             }
           ]
         },
@@ -1005,6 +1101,14 @@
             {
               "name": "Content-Type",
               "value": "application/json"
+            },
+            {
+              "name": "Accept-Profile",
+              "value": "operscale"
+            },
+            {
+              "name": "Content-Profile",
+              "value": "operscale"
             }
           ]
         },

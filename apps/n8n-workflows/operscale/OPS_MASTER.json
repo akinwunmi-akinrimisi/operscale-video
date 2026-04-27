@@ -124,6 +124,14 @@
             {
               "name": "apikey",
               "value": "={{ $env.SUPABASE_ANON_KEY }}"
+            },
+            {
+              "name": "Accept-Profile",
+              "value": "operscale"
+            },
+            {
+              "name": "Content-Profile",
+              "value": "operscale"
             }
           ]
         },
@@ -382,6 +390,14 @@
             {
               "name": "Prefer",
               "value": "return=minimal"
+            },
+            {
+              "name": "Accept-Profile",
+              "value": "operscale"
+            },
+            {
+              "name": "Content-Profile",
+              "value": "operscale"
             }
           ]
         },
