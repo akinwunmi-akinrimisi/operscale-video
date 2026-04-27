@@ -1,11 +1,6 @@
 {
-  "updatedAt": "2026-03-28T18:01:18.768Z",
-  "createdAt": "2026-03-28T17:25:57.560Z",
-  "id": "OYahvKcydMrUxK8j",
   "name": "OPS_KEN_BURNS",
-  "description": null,
   "active": false,
-  "isArchived": false,
   "nodes": [
     {
       "id": "trigger-1",
@@ -456,33 +451,5 @@
     "saveDataSuccessExecution": "none",
     "callerPolicy": "workflowsFromSameOwner",
     "availableInMCP": false
-  },
-  "staticData": null,
-  "meta": null,
-  "pinData": null,
-  "versionId": "eca35313-308a-4b74-92e3-83a10b1c389b",
-  "activeVersionId": null,
-  "versionCounter": 3,
-  "triggerCount": 0,
-  "shared": [
-    {
-      "updatedAt": "2026-03-28T17:25:57.563Z",
-      "createdAt": "2026-03-28T17:25:57.563Z",
-      "role": "workflow:owner",
-      "workflowId": "OYahvKcydMrUxK8j",
-      "projectId": "ccWn1Q4giuKzXIbJ",
-      "project": {
-        "updatedAt": "2026-01-26T11:09:31.107Z",
-        "createdAt": "2026-01-26T03:51:33.410Z",
-        "id": "ccWn1Q4giuKzXIbJ",
-        "name": "Akinwunmi Akinrimisi <akinolacrypto@gmail.com>",
-        "type": "personal",
-        "icon": null,
-        "description": null,
-        "creatorId": "ab010feb-355c-4130-b354-4e929908258e"
-      }
-    }
-  ],
-  "tags": [],
-  "activeVersion": null
+  }
 }

@@ -215,6 +215,28 @@ def rebind_subworkflow_fire_urls(workflow: dict) -> None:
             params['url'] = new_url
 
 
+CANONICAL_WORKFLOW_KEYS = {'name', 'nodes', 'connections', 'settings', 'active'}
+
+
+def normalize_workflow_shape(workflow: dict) -> None:
+    """Drop runtime-metadata top-level fields that n8n's REST API rejects on POST.
+
+    Some VG workflow exports (e.g. OPS_KEN_BURNS.json) carry runtime metadata
+    like `id`, `versionId`, `versionCounter`, `shared`, `createdAt`, `updatedAt`,
+    `pinData`, `tags`, `triggerCount`, `staticData`, `meta`, `description`,
+    `isArchived`, `activeVersion`, `activeVersionId`. The public API rejects
+    these with `request/body must NOT have additional properties`.
+
+    Keep only the canonical create-payload fields: name, nodes, connections,
+    settings, active. Mutates in place. Idempotent.
+    """
+    if not isinstance(workflow, dict):
+        return
+    for k in list(workflow.keys()):
+        if k not in CANONICAL_WORKFLOW_KEYS:
+            workflow.pop(k, None)
+
+
 def rebind(workflow: dict) -> dict:
     """Apply rebind transforms; return new dict (original untouched)."""
     out = transform_value(workflow)
@@ -229,6 +251,8 @@ def rebind(workflow: dict) -> dict:
     rebind_postgrest_schema_headers(out)
     # Sub-workflow Fire URLs ({{ $env.N8N_WEBHOOK_BASE }}/<path> → /operscale/<path>)
     rebind_subworkflow_fire_urls(out)
+    # Strip runtime-metadata fields that n8n public API POST rejects
+    normalize_workflow_shape(out)
     return out
 
 
