@@ -4,7 +4,7 @@
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "master/start",
+        "path": "operscale/master/start",
         "responseMode": "responseNode",
         "options": {
           "allowedOrigins": "*"

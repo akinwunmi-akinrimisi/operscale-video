@@ -3,7 +3,9 @@
 rebind-workflow.py — Apply Operscale rebind transforms to a VG workflow JSON.
 
 Per docs/adr/0008-fork-vision-gridai.md and the vg-workflow-rebind skill:
-  1. Webhook path namespace: /webhook/X → /webhook/operscale/X
+  1. Webhook node paths:     parameters.path "X" → "operscale/X"
+                              (n8n stores webhook paths bare, not as /webhook/X;
+                               structurally rebind every webhook-typed node)
   2. Workflow name prefix:   WF_X → OPS_X
   3. SQL FK rebind:          topic_id→video_id, topics→videos,
                               project_id→order_id, projects→orders
@@ -16,6 +18,8 @@ Usage: python infra/scripts/rebind-workflow.py <input.json> <output.json>
        python infra/scripts/rebind-workflow.py --batch <input_dir> <output_dir>
 
 Exits non-zero if any AUTH-01 or CRED-01 violation is detected.
+
+Idempotent: every transform is a no-op when applied to already-rebound input.
 """
 
 import argparse
@@ -27,6 +31,12 @@ from typing import Any
 
 # ── Rebind transforms ─────────────────────────────────
 
+WEBHOOK_NODE_TYPE = 'n8n-nodes-base.webhook'
+WEBHOOK_PATH_NS = 'operscale/'
+
+# Legacy text-replacement pattern kept for any stray `/webhook/...` URL strings
+# embedded in text fields (notes, code-node bodies, etc). The structural pass
+# below is what rebinds the actual webhook node `parameters.path` field.
 WEBHOOK_PATH_REPLACEMENTS = [
     (re.compile(r'/webhook/(?!operscale/)'), '/webhook/operscale/'),
 ]
@@ -82,6 +92,29 @@ def transform_value(v: Any) -> Any:
     return v
 
 
+def rebind_webhook_node_paths(workflow: dict) -> None:
+    """Prefix every webhook node's `parameters.path` with `operscale/` if missing.
+
+    n8n stores webhook paths bare (e.g. `production/tts`), not URL-prefixed.
+    The structural pass here is what actually prevents webhook conflicts with
+    VG's existing workflows on the shared n8n instance.
+
+    Idempotent: paths already starting with `operscale/` are left alone.
+    """
+    nodes = workflow.get('nodes', []) if isinstance(workflow, dict) else []
+    for node in nodes:
+        if not isinstance(node, dict):
+            continue
+        if node.get('type') != WEBHOOK_NODE_TYPE:
+            continue
+        params = node.get('parameters')
+        if not isinstance(params, dict):
+            continue
+        current = params.get('path')
+        if isinstance(current, str) and current and not current.startswith(WEBHOOK_PATH_NS):
+            params['path'] = WEBHOOK_PATH_NS + current.lstrip('/')
+
+
 def rebind(workflow: dict) -> dict:
     """Apply rebind transforms; return new dict (original untouched)."""
     out = transform_value(workflow)
@@ -89,6 +122,8 @@ def rebind(workflow: dict) -> dict:
     if isinstance(out, dict) and 'name' in out and isinstance(out['name'], str):
         for pattern, replacement in NAME_PREFIX_REPLACEMENTS:
             out['name'] = pattern.sub(replacement, out['name'])
+    # Structural webhook-path rebind (n8n stores paths bare; regex on text doesn't catch)
+    rebind_webhook_node_paths(out)
     return out
 
 
@@ -175,12 +210,12 @@ def main():
 
         findings = lint(wf, src.name)
         if findings:
-            print(f"❌ {src.name} — {len(findings)} finding(s):")
+            print(f"FAIL {src.name} -- {len(findings)} finding(s):")
             for fnd in findings:
                 print(fnd)
             total_findings += len(findings)
         else:
-            print(f"✅ {src.name}")
+            print(f"PASS {src.name}")
 
         if not args.lint_only:
             dst.parent.mkdir(parents=True, exist_ok=True)

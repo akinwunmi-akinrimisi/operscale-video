@@ -18,7 +18,7 @@
       ],
       "parameters": {
         "httpMethod": "POST",
-        "path": "production/ken-burns",
+        "path": "operscale/production/ken-burns",
         "authentication": "headerAuth",
         "options": {},
         "multipleMethods": false
