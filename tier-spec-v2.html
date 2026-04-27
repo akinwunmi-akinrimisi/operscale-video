@@ -1,0 +1,1341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Operscale Video Ads — The Three Tiers, In Full</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream: #faf6ed;
+    --cream-deep: #f1ebdc;
+    --paper: #ffffff;
+    --ink: #1a1510;
+    --ink-soft: #4a4338;
+    --ink-mute: #8a8073;
+    --rule: #d9cfb9;
+    --rule-soft: #e8e0cc;
+    --navy: #0d2340;
+    --navy-soft: #2a3d5c;
+    --gold: #c9994a;
+    --gold-bg: #f4e2c1;
+    --terra: #b4532a;
+    --terra-bg: #f4dfd0;
+    --sage: #5a7846;
+    --sage-bg: #dfe8d4;
+    --indigo: #3d4a78;
+    --indigo-bg: #dadff0;
+    --red: #a33a2f;
+
+    --prose: 720px;
+    --wide: 1180px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'Manrope', -apple-system, sans-serif;
+    background: var(--cream);
+    color: var(--ink);
+    font-size: 16px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap-prose { max-width: var(--prose); margin: 0 auto; padding: 0 24px; }
+  .wrap-wide  { max-width: var(--wide);  margin: 0 auto; padding: 0 24px; }
+
+  /* ---------------- HERO ---------------- */
+  .hero {
+    background: linear-gradient(180deg, #f1ebdc 0%, #faf6ed 100%);
+    border-bottom: 1px solid var(--rule);
+    padding: 72px 0 60px;
+    margin-bottom: 56px;
+  }
+  @media (max-width: 720px) { .hero { padding: 52px 0 44px; margin-bottom: 40px; } }
+
+  .hero-eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    margin-bottom: 28px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .hero-eyebrow::before {
+    content: "";
+    width: 28px; height: 1px;
+    background: var(--terra);
+  }
+
+  .hero h1 {
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: clamp(36px, 5.2vw, 60px);
+    line-height: 1.05;
+    letter-spacing: -0.025em;
+    margin-bottom: 22px;
+    max-width: 820px;
+  }
+  .hero h1 em { font-style: italic; color: var(--terra); font-weight: 400; }
+
+  .hero .lede {
+    font-size: 17.5px;
+    color: var(--ink-soft);
+    max-width: 660px;
+    line-height: 1.6;
+  }
+
+  /* ---------------- TIER CARDS ---------------- */
+  .tiers {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+    margin: 0 0 72px;
+    align-items: stretch;
+  }
+  @media (max-width: 980px) { .tiers { grid-template-columns: 1fr; gap: 18px; } }
+
+  .tier {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 14px;
+    padding: 32px 28px 30px;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+  .tier.featured {
+    background: var(--navy);
+    color: var(--cream);
+    border-color: var(--navy);
+    transform: translateY(-8px);
+  }
+  @media (max-width: 980px) { .tier.featured { transform: none; } }
+
+  .tier.featured .tier-tagline { color: rgba(250, 246, 237, 0.7); }
+  .tier.featured .tier-name { color: var(--cream); }
+  .tier.featured .tier-price { color: var(--gold); }
+  .tier.featured .tier-price-sub { color: rgba(250, 246, 237, 0.55); }
+  .tier.featured .tier-includes-label { color: var(--gold); border-bottom-color: rgba(201, 153, 74, 0.3); }
+  .tier.featured .tier ul li { color: rgba(250, 246, 237, 0.85); }
+  .tier.featured .tier-excludes { background: rgba(255, 255, 255, 0.04); border-top-color: rgba(201, 153, 74, 0.3); color: rgba(250, 246, 237, 0.55); }
+  .tier.featured .tier-excludes-label { color: var(--gold); }
+
+  .tier .badge {
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 6px 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    font-weight: 600;
+    border-radius: 100px;
+    background: var(--gold);
+    color: var(--navy);
+    white-space: nowrap;
+  }
+
+  .tier-name {
+    font-family: 'Fraunces', serif;
+    font-size: 26px;
+    font-weight: 500;
+    letter-spacing: -0.015em;
+    margin-bottom: 4px;
+    color: var(--ink);
+  }
+  .tier-tagline {
+    font-style: italic;
+    font-family: 'Fraunces', serif;
+    font-size: 15px;
+    color: var(--ink-mute);
+    margin-bottom: 24px;
+    font-weight: 400;
+    line-height: 1.4;
+  }
+  .tier-price {
+    font-family: 'Fraunces', serif;
+    font-size: 38px;
+    font-weight: 500;
+    letter-spacing: -0.025em;
+    color: var(--terra);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .tier-price-sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    color: var(--ink-mute);
+    letter-spacing: 0.06em;
+    margin-bottom: 28px;
+  }
+
+  .tier-includes-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--terra);
+    margin-bottom: 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .tier ul {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 18px;
+    flex: 1;
+  }
+  .tier ul li {
+    padding: 8px 0 8px 26px;
+    font-size: 13.5px;
+    position: relative;
+    color: var(--ink-soft);
+    line-height: 1.5;
+    border-bottom: 1px dashed var(--rule-soft);
+  }
+  .tier.featured ul li { border-bottom-color: rgba(201, 153, 74, 0.15); }
+  .tier ul li:last-child { border-bottom: none; }
+  .tier ul li::before {
+    content: "✓";
+    position: absolute;
+    left: 0;
+    top: 8px;
+    color: var(--terra);
+    font-weight: 700;
+    font-size: 14px;
+  }
+  .tier.featured ul li::before { color: var(--gold); }
+  .tier ul li strong { color: var(--ink); font-weight: 600; }
+  .tier.featured ul li strong { color: var(--cream); }
+  .tier ul li .new {
+    display: inline-block;
+    padding: 1px 6px;
+    background: var(--terra);
+    color: var(--cream);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    border-radius: 3px;
+    margin-left: 6px;
+    vertical-align: middle;
+    font-weight: 600;
+  }
+  .tier.featured ul li .new { background: var(--gold); color: var(--navy); }
+
+  .tier-excludes {
+    background: var(--cream-deep);
+    border-top: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 14px 16px;
+    margin-top: auto;
+  }
+  .tier-excludes-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--ink-mute);
+    margin-bottom: 8px;
+  }
+  .tier-excludes p {
+    font-size: 12.5px;
+    color: var(--ink-mute);
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  /* ---------------- FULL FEATURE TABLE ---------------- */
+  .table-section {
+    margin: 0 0 72px;
+  }
+
+  .section-sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--terra);
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+
+  h2.section-h {
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: clamp(28px, 3.6vw, 36px);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    margin: 0 0 14px;
+  }
+  h2.section-h em { font-style: italic; color: var(--terra); font-weight: 400; }
+
+  .section-lede {
+    font-size: 16px;
+    color: var(--ink-soft);
+    max-width: 640px;
+    margin-bottom: 28px;
+  }
+
+  .ft-table-wrap {
+    overflow-x: auto;
+    margin: 28px -4px 0;
+    padding: 4px;
+  }
+
+  table.ft {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: var(--paper);
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--rule);
+    font-size: 14px;
+    min-width: 760px;
+  }
+
+  table.ft thead th {
+    padding: 18px 16px;
+    background: var(--cream-deep);
+    border-bottom: 2px solid var(--rule);
+    text-align: left;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--ink);
+    vertical-align: bottom;
+  }
+  table.ft thead th.tcol {
+    text-align: center;
+    width: 18%;
+  }
+  table.ft thead th.tcol .tc-name {
+    font-family: 'Fraunces', serif;
+    font-size: 18px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    margin-bottom: 4px;
+    text-transform: none;
+    color: var(--ink);
+  }
+  table.ft thead th.tcol.featured { background: var(--navy); color: var(--cream); }
+  table.ft thead th.tcol.featured .tc-name { color: var(--cream); }
+  table.ft thead th.tcol .tc-price {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--terra);
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  table.ft thead th.tcol.featured .tc-price { color: var(--gold); }
+
+  table.ft tbody tr.cat-row td {
+    background: var(--cream-deep);
+    padding: 12px 18px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--terra);
+    font-weight: 600;
+    border-bottom: 1px solid var(--rule);
+    border-top: 1px solid var(--rule);
+  }
+  table.ft tbody tr.cat-row td.cat-first { border-top: none; }
+
+  table.ft tbody td {
+    padding: 13px 16px;
+    border-bottom: 1px solid var(--rule-soft);
+    vertical-align: top;
+    color: var(--ink-soft);
+    line-height: 1.5;
+  }
+  table.ft tbody tr:last-child td { border-bottom: none; }
+  table.ft tbody tr:hover td:not(.cat-row) { background: var(--cream); }
+  table.ft tbody td.feature-name {
+    color: var(--ink);
+    font-weight: 500;
+    width: 28%;
+  }
+  table.ft tbody td.feature-name .ft-desc {
+    display: block;
+    font-weight: 400;
+    color: var(--ink-mute);
+    font-size: 12.5px;
+    margin-top: 3px;
+    line-height: 1.45;
+  }
+  table.ft tbody td.cell {
+    text-align: center;
+    font-size: 13px;
+    width: 18%;
+  }
+  table.ft tbody td.cell.featured-col { background: rgba(13, 35, 64, 0.025); }
+  table.ft tbody td.cell .check {
+    display: inline-flex;
+    width: 20px;
+    height: 20px;
+    background: var(--terra);
+    color: var(--cream);
+    border-radius: 50%;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  table.ft tbody td.cell .dash { color: var(--ink-mute); font-size: 18px; line-height: 1; }
+  table.ft tbody td.cell .qty {
+    display: inline-block;
+    padding: 3px 10px;
+    background: var(--terra-bg);
+    color: var(--terra);
+    border-radius: 100px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+  table.ft tbody td.cell .qty.featured-q { background: var(--gold); color: var(--navy); }
+  table.ft tbody td.cell .qty.gold { background: var(--gold); color: var(--navy); }
+  table.ft tbody td.cell .small-text {
+    font-size: 11.5px;
+    color: var(--ink-soft);
+    line-height: 1.4;
+  }
+  table.ft tbody td.cell .small-text strong { color: var(--ink); font-weight: 600; }
+
+  /* ---------------- CALLOUTS ---------------- */
+  .callout {
+    border: 1px solid var(--rule);
+    border-radius: 12px;
+    padding: 32px 36px;
+    margin: 0 0 32px;
+  }
+  @media (max-width: 640px) { .callout { padding: 24px 24px; } }
+
+  .callout.warn {
+    background: var(--gold-bg);
+    border-color: var(--gold);
+  }
+  .callout.warn .c-label { color: #9a6f20; }
+
+  .callout.info {
+    background: var(--cream-deep);
+  }
+  .callout.info .c-label { color: var(--terra); }
+
+  .c-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    font-weight: 600;
+    margin-bottom: 14px;
+  }
+  .callout h3 {
+    font-family: 'Fraunces', serif;
+    font-size: 22px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    margin: 0 0 14px;
+    color: var(--ink);
+  }
+  .callout h3 em { font-style: italic; color: var(--terra); font-weight: 400; }
+  .callout p {
+    font-size: 15px;
+    color: var(--ink);
+    margin-bottom: 12px;
+    line-height: 1.65;
+  }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout strong { color: var(--ink); font-weight: 600; }
+
+  /* ---------------- DEEPDIVE BLOCKS ---------------- */
+  .deepdive {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 12px;
+    padding: 32px 38px;
+    margin-bottom: 28px;
+  }
+  @media (max-width: 640px) { .deepdive { padding: 26px 26px; } }
+
+  .deepdive .dd-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    color: var(--terra);
+    text-transform: uppercase;
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+  .deepdive h3 {
+    font-family: 'Fraunces', serif;
+    font-size: 24px;
+    font-weight: 500;
+    letter-spacing: -0.015em;
+    margin: 0 0 14px;
+  }
+  .deepdive h3 em { font-style: italic; color: var(--terra); font-weight: 400; }
+  .deepdive p {
+    font-size: 15px;
+    color: var(--ink-soft);
+    margin-bottom: 14px;
+    line-height: 1.6;
+  }
+  .deepdive ul { padding-left: 22px; margin-bottom: 14px; }
+  .deepdive ul li { font-size: 14.5px; color: var(--ink-soft); margin-bottom: 8px; line-height: 1.55; }
+  .deepdive strong { color: var(--ink); font-weight: 600; }
+
+  .stack {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin: 18px 0 4px;
+  }
+  @media (max-width: 640px) { .stack { grid-template-columns: 1fr; } }
+  .stack-cell {
+    background: var(--cream-deep);
+    padding: 14px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+  .stack-cell .sc-name {
+    font-weight: 600;
+    color: var(--ink);
+    font-size: 13.5px;
+    margin-bottom: 4px;
+  }
+  .stack-cell .sc-meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--terra);
+    font-weight: 500;
+    margin-top: 4px;
+    letter-spacing: 0.04em;
+  }
+
+  /* ---------------- ECONOMICS PANEL ---------------- */
+  .economics {
+    background: var(--navy);
+    color: var(--cream);
+    padding: 40px 44px;
+    border-radius: 12px;
+    margin: 32px 0 48px;
+  }
+  @media (max-width: 640px) { .economics { padding: 28px 24px; } }
+
+  .economics .e-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    color: var(--gold);
+    text-transform: uppercase;
+    font-weight: 600;
+    margin-bottom: 14px;
+  }
+  .economics h3 {
+    font-family: 'Fraunces', serif;
+    font-size: 26px;
+    font-weight: 500;
+    letter-spacing: -0.015em;
+    color: var(--cream);
+    margin: 0 0 14px;
+  }
+  .economics > p {
+    color: rgba(250, 246, 237, 0.78);
+    font-size: 15px;
+    margin-bottom: 28px;
+    max-width: 640px;
+    line-height: 1.6;
+  }
+
+  .econ-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: rgba(201, 153, 74, 0.35);
+    border: 1px solid rgba(201, 153, 74, 0.35);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  @media (max-width: 700px) { .econ-grid { grid-template-columns: 1fr; } }
+  .econ-cell {
+    background: var(--navy);
+    padding: 22px 22px;
+  }
+  .econ-cell .ec-tier {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--gold);
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+  .econ-cell .ec-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    font-size: 13.5px;
+    color: rgba(250, 246, 237, 0.85);
+    border-top: 1px solid rgba(201, 153, 74, 0.2);
+  }
+  .econ-cell .ec-row:first-of-type { border-top: none; padding-top: 12px; }
+  .econ-cell .ec-row.total {
+    border-top: 1.5px solid var(--gold);
+    margin-top: 6px;
+    padding-top: 10px;
+    color: var(--cream);
+    font-weight: 600;
+  }
+  .econ-cell .ec-row .label { color: rgba(250, 246, 237, 0.65); }
+  .econ-cell .ec-row .val { font-family: 'JetBrains Mono', monospace; font-weight: 500; }
+  .econ-cell .ec-row.total .val { color: var(--gold); }
+  .econ-cell .ec-row.cogs .val { color: rgba(250, 246, 237, 0.7); }
+
+  /* ---------------- RETAINERS ---------------- */
+  .retainers-wrap {
+    background: var(--cream-deep);
+    border: 1px solid var(--rule);
+    border-radius: 12px;
+    padding: 32px 36px;
+    margin: 0 0 56px;
+  }
+  @media (max-width: 640px) { .retainers-wrap { padding: 24px 24px; } }
+
+  .retainers-wrap > .r-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    color: var(--ink-mute);
+    text-transform: uppercase;
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+  .retainers-wrap > h3 {
+    font-family: 'Fraunces', serif;
+    font-size: 24px;
+    font-weight: 500;
+    letter-spacing: -0.015em;
+    margin: 0 0 22px;
+  }
+  .retainers-wrap > h3 em { font-style: italic; color: var(--terra); font-weight: 400; }
+
+  .retainers {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+  }
+  @media (max-width: 640px) { .retainers { grid-template-columns: 1fr; } }
+
+  .ret-card {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 22px 24px;
+  }
+  .ret-card .ret-name {
+    font-family: 'Fraunces', serif;
+    font-size: 19px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    margin-bottom: 4px;
+  }
+  .ret-card .ret-price {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--terra);
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+  .ret-card ul { list-style: none; padding: 0; margin: 0; }
+  .ret-card ul li {
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    padding: 5px 0 5px 18px;
+    position: relative;
+    line-height: 1.5;
+  }
+  .ret-card ul li::before {
+    content: "·";
+    position: absolute;
+    left: 4px;
+    top: 4px;
+    color: var(--terra);
+    font-weight: 600;
+    font-size: 18px;
+  }
+
+  /* ---------------- FOOTER ---------------- */
+  footer {
+    background: var(--cream-deep);
+    border-top: 1px solid var(--rule);
+    padding: 32px 0 38px;
+    margin-top: 48px;
+  }
+  footer .wrap-prose {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+  }
+
+  @media print {
+    body { background: white; font-size: 10.5pt; }
+    .hero { padding: 24pt 0; }
+    .tier, .deepdive, .callout { page-break-inside: avoid; }
+    .economics { background: #f3f3f3 !important; color: black !important; }
+    .economics * { color: black !important; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ HERO ============ -->
+<header class="hero">
+  <div class="wrap-prose">
+    <div class="hero-eyebrow">Operscale Video Ads · Tier Spec v2 · 2026-04-22</div>
+    <h1>Three tiers, <em>now with characters</em>.</h1>
+    <p class="lede">
+      Updated tier comparison after the multi-character dialogue and customer-uploaded
+      avatar additions. New capabilities live in Creative Pod only — the cinema-style
+      Pilot and Standard tiers remain our default for the simple reason that they
+      convert better at the smaller price point.
+    </p>
+  </div>
+</header>
+
+<!-- ============ TIER CARDS ============ -->
+<div class="wrap-wide">
+  <div class="tiers">
+
+    <!-- PILOT -->
+    <div class="tier">
+      <div class="tier-name">Pilot</div>
+      <div class="tier-tagline">"Try us once. See if we're your people."</div>
+      <div class="tier-price">₦75,000</div>
+      <div class="tier-price-sub">≈ $45 · single project</div>
+
+      <div class="tier-includes-label">Included</div>
+      <ul>
+        <li><strong>1 video ad</strong>, 15 – 30 seconds</li>
+        <li><strong>1 script angle</strong>, no variants</li>
+        <li>Cinema-style <strong>documentary aesthetic</strong> (not avatar-led)</li>
+        <li>Standard voiceover · Google Cloud TTS</li>
+        <li>White kinetic subtitles</li>
+        <li>Royalty-free background music</li>
+        <li>1 format · 9:16 (Reels / TikTok / Shorts)</li>
+        <li>1 free revision round</li>
+        <li>48-hour delivery</li>
+        <li>Refund-or-redo guarantee</li>
+      </ul>
+
+      <div class="tier-excludes">
+        <div class="tier-excludes-label">Not included</div>
+        <p>Multi-character dialogue, custom avatar, brand colours, multi-format delivery, premium voice, founder strategy call.</p>
+      </div>
+    </div>
+
+    <!-- STANDARD -->
+    <div class="tier featured">
+      <div class="badge">Most popular</div>
+      <div class="tier-name">Standard</div>
+      <div class="tier-tagline">"The working ad. For a real campaign."</div>
+      <div class="tier-price">₦175,000</div>
+      <div class="tier-price-sub">≈ $105 · single project</div>
+
+      <div class="tier-includes-label">Included</div>
+      <ul>
+        <li><strong>1 video ad</strong>, 15 – 45 seconds</li>
+        <li><strong>3 script angles</strong> to choose from before production</li>
+        <li>Cinema-style <strong>documentary aesthetic</strong></li>
+        <li><strong>Premium voiceover</strong> · ElevenLabs warm / authoritative / energetic</li>
+        <li>Niche-styled kinetic subtitles (red emphasis system)</li>
+        <li>Licensed music track from Artlist library</li>
+        <li><strong>3 formats</strong> · 9:16, 1:1, 16:9</li>
+        <li>Brand colours integrated</li>
+        <li>Logo placement (intro &amp; outro)</li>
+        <li>YouTube Shorts thumbnail image</li>
+        <li>2 free revision rounds</li>
+        <li>36-hour delivery</li>
+        <li>Refund-or-redo guarantee</li>
+      </ul>
+
+      <div class="tier-excludes">
+        <div class="tier-excludes-label">Not included</div>
+        <p>Multi-character dialogue, custom avatar, founder strategy call, performance check-in.</p>
+      </div>
+    </div>
+
+    <!-- CREATIVE POD -->
+    <div class="tier">
+      <div class="tier-name">Creative Pod</div>
+      <div class="tier-tagline">"When one ad won't cut it."</div>
+      <div class="tier-price">₦350,000</div>
+      <div class="tier-price-sub">≈ $210 · campaign of three</div>
+
+      <div class="tier-includes-label">Included</div>
+      <ul>
+        <li><strong>3 connected video ads</strong> (a campaign, not three one-offs)</li>
+        <li>Unified visual system across all three</li>
+        <li><strong>5 script angles</strong> per video to pick from</li>
+        <li>Choice of <strong>two production styles</strong> per video — cinema OR avatar-led <span class="new">New</span></li>
+        <li><strong>Multi-character dialogue</strong> — up to 2 speaking characters per avatar-led video <span class="new">New</span></li>
+        <li><strong>Custom avatar from your photo</strong> — usable across all 3 videos <span class="new">New</span></li>
+        <li>Premium voiceover with variant takes (ElevenLabs)</li>
+        <li>Custom kinetic typography system</li>
+        <li>Licensed music with scene transitions</li>
+        <li>All formats · 9:16, 1:1, 16:9 · plus 4K master</li>
+        <li>2 free revision rounds per video (6 total)</li>
+        <li>72-hour delivery for all three</li>
+        <li>30-min strategy call with founder before production</li>
+        <li>Post-delivery 7-day performance check-in</li>
+        <li>Refund-or-redo guarantee</li>
+      </ul>
+
+      <div class="tier-excludes">
+        <div class="tier-excludes-label">Capacity limits</div>
+        <p>Custom avatar requires your written consent + clear photo. Multi-character capped at 2 speakers per video. Both features are Creative-Pod-only and not retro-fittable to lower tiers.</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ============ DEEPDIVE — MULTI-CHARACTER ============ -->
+<div class="wrap-prose">
+  <div class="section-sub">Question 01</div>
+  <h2 class="section-h">Multi-character dialogue — <em>can we do it?</em></h2>
+  <p class="section-lede">
+    Short answer: yes, with audio sync and consistency, but only at Creative Pod tier.
+    Here's how it actually works under the hood.
+  </p>
+
+  <div class="deepdive">
+    <div class="dd-label">How sync &amp; consistency are guaranteed</div>
+    <h3>The trick is <em>never two mouths at once</em>.</h3>
+    <p>
+      In a real two-person dialogue ad, the two avatars never speak simultaneously. The
+      camera cuts between them — Character A says her line, cut, Character B replies,
+      cut, back to Character A. That's how every multi-character AI ad you've seen is
+      actually built. Each segment is rendered separately by the avatar API, with its
+      own lip-sync to its own audio track. We then assemble the segments in FFmpeg with
+      the right cuts, transitions, and pacing.
+    </p>
+    <p>
+      <strong>Audio sync is guaranteed</strong> because each segment has only one
+      speaker; the avatar API's lip-sync only has one mouth to align. <strong>Visual
+      consistency is guaranteed</strong> because Character A's avatar is the same
+      identity (same HeyGen avatar ID) across every segment she appears in — same face,
+      same voice, same style. Same for Character B.
+    </p>
+    <p>
+      The script-generation step writes the dialogue as a turn-taking conversation with
+      explicit speaker tags (<code>A: …</code> / <code>B: …</code>). The render
+      orchestrator splits this into per-segment renders, fans them out to HeyGen in
+      parallel, and stitches the returned MP4s with our existing FFmpeg pipeline.
+    </p>
+
+    <div class="stack">
+      <div class="stack-cell">
+        <div class="sc-name">Script orchestration</div>
+        Turn-taking dialogue with speaker tags, generated by Claude Opus 4.7.
+        <div class="sc-meta">~30 sec</div>
+      </div>
+      <div class="stack-cell">
+        <div class="sc-name">Per-segment render</div>
+        HeyGen API · 1 avatar + audio per call. Parallelised across speakers.
+        <div class="sc-meta">~3 min / segment</div>
+      </div>
+      <div class="stack-cell">
+        <div class="sc-name">Final assembly</div>
+        FFmpeg cuts, transitions, music bed, captions overlay.
+        <div class="sc-meta">~2 min total</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <div class="c-label">★ Why we're capping it at 2 speakers, Creative Pod only</div>
+    <p>
+      Three+ speakers exponentially increase the rendering and revision-cost burden — a
+      3-character 45-second dialogue is roughly 9 segments at $4–8 each. That's $36–72
+      in pure avatar API costs before FFmpeg, before voice clones, before our margin.
+      <strong>Capping at 2 speakers keeps us at $8–16 per video</strong>, which fits
+      cleanly inside the Creative Pod margin. Want a 3-speaker ad? We'll quote it
+      custom — likely ₦450K – ₦600K — but it's not a tier feature.
+    </p>
+    <p>
+      The reason this isn't in Standard or Pilot at all: those tiers are our cinema-aesthetic
+      moat. Documentary single-narrator over text-to-image visuals is what we're best at and
+      what nobody else in Nigeria does. Pulling avatar-led dialogue into Standard would dilute
+      that positioning to compete on Arcads / Creatify's home turf — where they have a 12-month
+      head start. <strong>Creative Pod customers self-select into wanting both options.</strong>
+    </p>
+  </div>
+</div>
+
+<!-- ============ DEEPDIVE — CUSTOM AVATAR ============ -->
+<div class="wrap-prose">
+  <div class="section-sub">Question 02</div>
+  <h2 class="section-h">Customer-uploaded avatar — <em>how does it work?</em></h2>
+  <p class="section-lede">
+    The customer sends us a photo of themselves (or a permitted person), and we render
+    the ad with that face speaking the script. Here's the implementation, the consent
+    framework, and the cost.
+  </p>
+
+  <div class="deepdive">
+    <div class="dd-label">The four-step flow</div>
+    <h3>From photo to <em>finished avatar</em>.</h3>
+    <ul>
+      <li><strong>Step 01 · Submission.</strong> During Creative Pod intake, the customer uploads a clear front-facing photo or a 30-second video clip. The form requires an explicit consent checkbox: "I confirm I own the rights to this image and have permission from any person depicted."</li>
+      <li><strong>Step 02 · Avatar creation.</strong> We forward to HeyGen's instant-avatar API. The avatar is generated within 1–2 hours and saved to our HeyGen workspace under the order ID. Cost: ~$5–10 per avatar.</li>
+      <li><strong>Step 03 · Render.</strong> The avatar speaks our generated script using HeyGen's TTS (or a voice clone if the customer also provides 60 seconds of clean voice audio — that's a separate add-on). Each rendered segment runs ~$4–8 in HeyGen API costs.</li>
+      <li><strong>Step 04 · Delivery &amp; archive.</strong> Final video delivered. The custom avatar stays in our HeyGen workspace for 90 days. If the customer orders again within 90 days, we reuse the same avatar at no extra cost. Beyond 90 days, we recreate it (~$5–10 again).</li>
+    </ul>
+  </div>
+
+  <div class="callout info">
+    <div class="c-label">Consent &amp; rights — non-negotiable</div>
+    <h3>Why this only goes in Creative Pod, with a paper trail.</h3>
+    <p>
+      One mishandled photo of someone who didn't consent — say, a customer uploads their
+      cousin's face without asking — is a Lagos lawyer's letter we don't want. The form
+      requires an explicit consent statement. The consent is logged in Supabase
+      (<code>order_consent</code> table) with a timestamp. Our terms of service explicitly
+      require that the customer hold the rights and indemnify us for misuse.
+    </p>
+    <p>
+      Pilot and Standard customers cannot order custom avatar even as an add-on at launch
+      — the consent framework requires the explicit acknowledgement that we collect via
+      Creative Pod intake. This protects both us and them.
+    </p>
+  </div>
+
+  <div class="callout warn">
+    <div class="c-label">Quality reality check</div>
+    <p>
+      A blurry phone selfie becomes a blurry avatar. We will <strong>reject submissions
+      that fail a basic clarity check</strong> at Gate 0 — front-facing, well-lit, sharp
+      focus, no obstructions. The brief acknowledgement message will tell the customer
+      what we need; we'll provide an in-form preview that says "yes / try again" before
+      they pay.
+    </p>
+    <p>
+      If the customer insists on a poor-quality photo, we deliver it but keep written
+      record that we flagged the quality concern. Refund-or-redo guarantee still applies,
+      but quality complaints with documented warning don't trigger automatic refund.
+    </p>
+  </div>
+</div>
+
+<!-- ============ COMPREHENSIVE FEATURE TABLE ============ -->
+<div class="wrap-wide table-section">
+  <div class="wrap-prose" style="padding: 0;">
+    <div class="section-sub">The full picture</div>
+    <h2 class="section-h">Every <em>feature</em>, side by side.</h2>
+    <p class="section-lede">
+      Engineering-grade comparison. This is the source of truth for what each tier
+      includes — the marketing site and quote messages reference this table.
+    </p>
+  </div>
+
+  <div class="ft-table-wrap">
+    <table class="ft">
+      <thead>
+        <tr>
+          <th>Feature</th>
+          <th class="tcol"><div class="tc-name">Pilot</div><div class="tc-price">₦75,000</div></th>
+          <th class="tcol featured"><div class="tc-name">Standard</div><div class="tc-price">₦175,000</div></th>
+          <th class="tcol"><div class="tc-name">Creative Pod</div><div class="tc-price">₦350,000</div></th>
+        </tr>
+      </thead>
+      <tbody>
+
+        <!-- CATEGORY: VIDEO OUTPUT -->
+        <tr class="cat-row"><td colspan="4" class="cat-first">A · Video output</td></tr>
+
+        <tr>
+          <td class="feature-name">Number of videos
+            <span class="ft-desc">Per single project order.</span>
+          </td>
+          <td class="cell"><span class="qty">1</span></td>
+          <td class="cell featured-col"><span class="qty featured-q">1</span></td>
+          <td class="cell"><span class="qty gold">3</span></td>
+        </tr>
+
+        <tr>
+          <td class="feature-name">Video length
+            <span class="ft-desc">Hard ceiling. Optimised for ad performance, not vanity duration.</span>
+          </td>
+          <td class="cell"><span class="small-text">15 – 30 sec</span></td>
+          <td class="cell featured-col"><span class="small-text">15 – 45 sec</span></td>
+          <td class="cell"><span class="small-text">15 – 60 sec each</span></td>
+        </tr>
+
+        <tr>
+          <td class="feature-name">Production style
+            <span class="ft-desc">Documentary = our cinema aesthetic. Avatar-led = HeyGen-style talking heads.</span>
+          </td>
+          <td class="cell"><span class="small-text">Documentary only</span></td>
+          <td class="cell featured-col"><span class="small-text">Documentary only</span></td>
+          <td class="cell"><span class="small-text"><strong>Choice per video:</strong><br>Documentary OR Avatar-led</span></td>
+        </tr>
+
+        <tr>
+          <td class="feature-name">Output formats
+            <span class="ft-desc">9:16 vertical · 1:1 square · 16:9 landscape · 4K master.</span>
+          </td>
+          <td class="cell"><span class="small-text">9:16 only</span></td>
+          <td class="cell featured-col"><span class="small-text"><strong>9:16 + 1:1 + 16:9</strong></span></td>
+          <td class="cell"><span class="small-text"><strong>All formats + 4K master</strong></span></td>
+        </tr>
+
+        <tr>
+          <td class="feature-name">Delivery time
+            <span class="ft-desc">From paid brief to final video. Excludes customer review windows.</span>
+          </td>
+          <td class="cell"><span class="qty">48 h</span></td>
+          <td class="cell featured-col"><span class="qty featured-q">36 h</span></td>
+          <td class="cell"><span class="qty gold">72 h (3 vids)</span></td>
+        </tr>
+
+        <!-- CATEGORY: SCRIPT & CREATIVE -->
+        <tr class="cat-row"><td colspan="4">B · Script &amp; creative</td></tr>
+
+        <tr>
+          <td class="feature-name">Script angles offered
+            <span class="ft-desc">Different hook + premise variants you choose from before production.</span>
+          </td>
+          <td class="cell"><span class="qty">1</span></td>
+          <td class="cell featured-col"><span class="qty featured-q">3</span></td>
+          <td class="cell"><span class="qty gold">5 per video</span></td>
+        </tr>
+
+        <tr>
+          <td class="feature-name">Niche-specific creative direction
+            <span class="ft-desc">Real Estate, Education, Fashion, Fintech, Health — each with dedicated brief.</span>
+          </td>
+          <td class="cell"><span class="check">✓</span></td>
+          <td class="cell featured-col"><span class="check">✓</span></td>
+          <td class="cell"><span class="check">✓</span></td>
+        </tr>
+
+        <tr>
+          <td class="feature-name">Multi-character dialogue
+            <span class="ft-desc">Two speaking characters with sync'd audio and consistent identity.</span>
+          </td>
+          <td class="cell"><span class="dash">—</span></td>
+          <td class="cell featured-col"><span class="dash">—</span></td>
+          <td class="cell"><span class="check">✓</span> <span class="small-text">Up to 2 speakers</span></td>
+        </tr>
+
+        <tr>
+          <td class="feature-name">Custom avatar from your photo
+            <span class="ft-desc">Your face (or someone you have rights to) becomes the avatar.</span>
+          </td>
+          <td class="cell"><span class="dash">—</span></td>
+          <td class="cell featured-col"><span class="dash">—</span></td>
+          <td class="cell"><span class="check">✓</span> <span class="small-text">Reused across 3 videos</span></td>
+        </tr>
+
+        <tr>
+          <td class="feature-name">Strategy call before production
+            <span class="ft-desc">30-min Zoom with Akinwunmi to align on direction before script work begins.</span>
+          </td>
+          <td class="cell"><span class="dash">—</span></td>
+          <td class="cell featured-col"><span class="dash">—</span></td>
+          <td class="cell"><span class="check">✓</span></td>
+        </tr>
+
+        <!-- CATEGORY: VOICE & AUDIO -->
+        <tr class="cat-row"><td colspan="4">C · Voice &amp; audio</td></tr>
+
+        <tr>
+          <td class="feature-name">Voiceover engine
+            <span class="ft-desc">Different TTS providers; Pilot is recognisably AI, Standard+ is harder to clock.</span>
+          </td>
+          <td class="cell"><span class="small-text">Google Cloud TTS</span></td>
+          <td class="cell featured-col"><span class="small-text"><strong>ElevenLabs Premium</strong></span></td>
+          <td class="cell"><span class="small-text"><strong>ElevenLabs + variant takes</strong></span></td>
+        </tr>
+
+        <tr>
+          <td class="feature-name">Voice tone options
+            <span class="ft-desc">Warm, authoritative, energetic, or playful. Niche-matched.</span>
+          </td>
+          <td class="cell"><span class="small-text">1 default</span></td>
+          <td class="cell featured-col"><span class="small-text"><strong>Pick from 4 tones</strong></span></td>
+          <td class="cell"><span class="small-text"><strong>Pick from 4 + 2 alternative reads</strong></span></td>
+        </tr>
+
+        <tr>
+          <td class="feature-name">Music
+            <span class="ft-desc">Royalty-free vs Artlist licensed. Different production quality tiers.</span>
+          </td>
+          <td class="cell"><span class="small-text">Royalty-free library</span></td>
+          <td class="cell featured-col"><span class="small-text"><strong>Artlist licensed</strong></span></td>
+          <td class="cell"><span class="small-text"><strong>Artlist + scene-specific transitions</strong></span></td>
+        </tr>
+
+        <!-- CATEGORY: VISUAL POLISH -->
+        <tr class="cat-row"><td colspan="4">D · Visual polish</td></tr>
+
+        <tr>
+          <td class="feature-name">Subtitles
+            <span class="ft-desc">Word-level Whisper-aligned captions in our two-tier kinetic style.</span>
+          </td>
+          <td class="cell"><span class="small-text">Standard white kinetic</span></td>
+          <td class="cell featured-col"><span class="small-text"><strong>Niche-styled with red emphasis</strong></span></td>
+          <td class="cell"><span class="small-text"><strong>Custom typography per campaign</strong></span></td>
+        </tr>
+
+        <tr>
+          <td class="feature-name">Brand colour integration
+            <span class="ft-desc">Your brand palette shows up in subtitle accents, lower-thirds, transitions.</span>
+          </td>
+          <td class="cell"><span class="dash">—</span></td>
+          <td class="cell featured-col"><span class="check">✓</span></td>
+          <td class="cell"><span class="check">✓</span></td>
+        </tr>
+
+        <tr>
+          <td class="feature-name">Logo placement
+            <span class="ft-desc">Intro/outro logo card with motion treatment.</span>
+          </td>
+          <td class="cell"><span class="dash">—</span></td>
+          <td class="cell featured-col"><span class="check">✓</span></td>
+          <td class="cell"><span class="check">✓</span></td>
+        </tr>
+
+        <tr>
+          <td class="feature-name">YouTube Shorts thumbnail
+            <span class="ft-desc">A separate static image generated to match.</span>
+          </td>
+          <td class="cell"><span class="dash">—</span></td>
+          <td class="cell featured-col"><span class="check">✓</span></td>
+          <td class="cell"><span class="check">✓ + per video</span></td>
+        </tr>
+
+        <!-- CATEGORY: REVISIONS & GUARANTEES -->
+        <tr class="cat-row"><td colspan="4">E · Revisions &amp; guarantees</td></tr>
+
+        <tr>
+          <td class="feature-name">Free revision rounds
+            <span class="ft-desc">Per video. Beyond this, ₦25,000 per round.</span>
+          </td>
+          <td class="cell"><span class="qty">1</span></td>
+          <td class="cell featured-col"><span class="qty featured-q">2</span></td>
+          <td class="cell"><span class="qty gold">2 per video<br>(6 total)</span></td>
+        </tr>
+
+        <tr>
+          <td class="feature-name">Refund-or-redo guarantee
+            <span class="ft-desc">If the final video isn't postable, we rebuild from scratch or refund in full.</span>
+          </td>
+          <td class="cell"><span class="check">✓</span></td>
+          <td class="cell featured-col"><span class="check">✓</span></td>
+          <td class="cell"><span class="check">✓</span></td>
+        </tr>
+
+        <tr>
+          <td class="feature-name">Founder review of script
+            <span class="ft-desc">Akinwunmi reads every script before customer sees it.</span>
+          </td>
+          <td class="cell"><span class="check">✓</span></td>
+          <td class="cell featured-col"><span class="check">✓</span></td>
+          <td class="cell"><span class="check">✓</span></td>
+        </tr>
+
+        <tr>
+          <td class="feature-name">Founder review of final render
+            <span class="ft-desc">Akinwunmi watches every video before customer download.</span>
+          </td>
+          <td class="cell"><span class="check">✓</span></td>
+          <td class="cell featured-col"><span class="check">✓</span></td>
+          <td class="cell"><span class="check">✓</span></td>
+        </tr>
+
+        <!-- CATEGORY: SUPPORT -->
+        <tr class="cat-row"><td colspan="4">F · Support &amp; ownership</td></tr>
+
+        <tr>
+          <td class="feature-name">Support channel
+            <span class="ft-desc">Email + WhatsApp on every tier. Direct founder access on Creative Pod.</span>
+          </td>
+          <td class="cell"><span class="small-text">Email + WhatsApp</span></td>
+          <td class="cell featured-col"><span class="small-text">Email + WhatsApp</span></td>
+          <td class="cell"><span class="small-text"><strong>Direct founder line</strong></span></td>
+        </tr>
+
+        <tr>
+          <td class="feature-name">Post-delivery performance check-in
+            <span class="ft-desc">7 days after delivery, we ask how the video performed and offer next-step advice.</span>
+          </td>
+          <td class="cell"><span class="dash">—</span></td>
+          <td class="cell featured-col"><span class="dash">—</span></td>
+          <td class="cell"><span class="check">✓</span></td>
+        </tr>
+
+        <tr>
+          <td class="feature-name">Full ownership of footage
+            <span class="ft-desc">All rights to use, edit, repost, run as ads. No watermark. No royalty.</span>
+          </td>
+          <td class="cell"><span class="check">✓</span></td>
+          <td class="cell featured-col"><span class="check">✓</span></td>
+          <td class="cell"><span class="check">✓</span></td>
+        </tr>
+
+        <tr>
+          <td class="feature-name">Public case study
+            <span class="ft-desc">We may publish anonymised case at /o/[id]. Opt-out available.</span>
+          </td>
+          <td class="cell"><span class="small-text">Default opt-in (anonymised)</span></td>
+          <td class="cell featured-col"><span class="small-text">Default opt-in (anonymised)</span></td>
+          <td class="cell"><span class="small-text"><strong>Default opt-in. Branded case if you want.</strong></span></td>
+        </tr>
+
+        <!-- CATEGORY: PAYMENT -->
+        <tr class="cat-row"><td colspan="4">G · Payment terms</td></tr>
+
+        <tr>
+          <td class="feature-name">Payment schedule
+            <span class="ft-desc">Pilot and Standard 100% upfront; Creative Pod 50% to start, 50% at delivery.</span>
+          </td>
+          <td class="cell"><span class="small-text">100% upfront</span></td>
+          <td class="cell featured-col"><span class="small-text">100% upfront</span></td>
+          <td class="cell"><span class="small-text"><strong>50% / 50%</strong></span></td>
+        </tr>
+
+        <tr>
+          <td class="feature-name">Payment methods
+            <span class="ft-desc">Paystack handles card, bank transfer, USSD. NGN only.</span>
+          </td>
+          <td class="cell"><span class="small-text">Paystack (NGN)</span></td>
+          <td class="cell featured-col"><span class="small-text">Paystack (NGN)</span></td>
+          <td class="cell"><span class="small-text">Paystack (NGN)</span></td>
+        </tr>
+
+        <tr>
+          <td class="feature-name">NGN business invoice
+            <span class="ft-desc">Properly formatted invoice for company accounting and tax filing.</span>
+          </td>
+          <td class="cell"><span class="check">✓</span></td>
+          <td class="cell featured-col"><span class="check">✓</span></td>
+          <td class="cell"><span class="check">✓</span></td>
+        </tr>
+
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ============ ECONOMICS PANEL ============ -->
+<div class="wrap-prose">
+  <div class="economics">
+    <div class="e-label">★ Unit economics — what each tier costs us</div>
+    <h3>Where the new features sit in the margin.</h3>
+    <p>
+      Custom avatar and multi-character dialogue add real variable costs. Here's how each
+      tier's COGS holds up. All figures rough — true costs flex with which features the
+      Creative Pod customer actually picks.
+    </p>
+
+    <div class="econ-grid">
+
+      <div class="econ-cell">
+        <div class="ec-tier">Pilot · ₦75,000 ($45)</div>
+        <div class="ec-row cogs"><span class="label">Vision GridAI render</span><span class="val">~$2.50</span></div>
+        <div class="ec-row cogs"><span class="label">TTS (Google Cloud)</span><span class="val">~$0.40</span></div>
+        <div class="ec-row cogs"><span class="label">LLM (Opus 4.7)</span><span class="val">~$2.00</span></div>
+        <div class="ec-row cogs"><span class="label">Music + misc</span><span class="val">~$0.50</span></div>
+        <div class="ec-row total"><span class="label">Margin</span><span class="val">~88% / $40</span></div>
+      </div>
+
+      <div class="econ-cell">
+        <div class="ec-tier">Standard · ₦175,000 ($105)</div>
+        <div class="ec-row cogs"><span class="label">Vision GridAI render</span><span class="val">~$3.00</span></div>
+        <div class="ec-row cogs"><span class="label">ElevenLabs voiceover</span><span class="val">~$1.50</span></div>
+        <div class="ec-row cogs"><span class="label">LLM (Opus 4.7) · 3 angles</span><span class="val">~$3.50</span></div>
+        <div class="ec-row cogs"><span class="label">Artlist + multi-format + thumbnail</span><span class="val">~$2.00</span></div>
+        <div class="ec-row total"><span class="label">Margin</span><span class="val">~91% / $95</span></div>
+      </div>
+
+      <div class="econ-cell">
+        <div class="ec-tier">Creative Pod · ₦350,000 ($210)</div>
+        <div class="ec-row cogs"><span class="label">3 × render (mixed style)</span><span class="val">~$10</span></div>
+        <div class="ec-row cogs"><span class="label">Avatar API (HeyGen) — if used</span><span class="val">~$10 – 20</span></div>
+        <div class="ec-row cogs"><span class="label">Custom avatar gen — if used</span><span class="val">~$5 – 10</span></div>
+        <div class="ec-row cogs"><span class="label">LLM · 5 angles × 3 vids</span><span class="val">~$8</span></div>
+        <div class="ec-row total"><span class="label">Margin (worst case)</span><span class="val">~78% / $165</span></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ============ RETAINERS ============ -->
+<div class="wrap-prose">
+  <div class="retainers-wrap">
+    <div class="r-label">Retainer tiers</div>
+    <h3>Doing this <em>every month?</em></h3>
+
+    <div class="retainers">
+      <div class="ret-card">
+        <div class="ret-name">Momentum</div>
+        <div class="ret-price">₦600,000 / month</div>
+        <ul>
+          <li>5 Standard-tier videos per month</li>
+          <li>Priority queue (24h delivery vs 36h)</li>
+          <li>Monthly strategy call with founder</li>
+          <li>Carry-over of 1 unused video to next month</li>
+        </ul>
+      </div>
+      <div class="ret-card">
+        <div class="ret-name">Velocity</div>
+        <div class="ret-price">₦1,200,000 / month</div>
+        <ul>
+          <li>12 videos per month (mix of Standard + Creative Pod features)</li>
+          <li>Custom avatar persistent in our workspace</li>
+          <li>Weekly check-in with founder</li>
+          <li>Performance dashboard with ad-platform analytics</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+  <div class="wrap-prose">
+    <span>Operscale · Video Ads · Tier Spec v2</span>
+    <span>Version 02 · 2026-04-22</span>
+  </div>
+</footer>
+
+</body>
+</html>
