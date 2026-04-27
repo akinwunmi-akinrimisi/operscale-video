@@ -20,6 +20,7 @@ MIGRATIONS=(
   "002_seed_registers.sql"
   "003_seed_prompt_configs.sql"
   "004_storage_buckets.sql"
+  "005_grant_operscale_roles.sql"
 )
 
 SUPABASE_DB="supabase-db-1"
