@@ -99,13 +99,13 @@ def lint(workflow: dict, source_name: str) -> list[LintFinding]:
     nodes = workflow.get('nodes', [])
     for node in nodes:
         node_name = node.get('name', '<unnamed>')
-        params = node.get('parameters', {})
+        params = node.get('parameters') or {}
 
         # AUTH-01: every Authorization header value must start with '=' if it
         # contains an n8n expression-syntax substring like {{ $env.X }}.
         headers = (
-            params.get('headerParameters', {}).get('parameters')
-            or params.get('headers', {}).get('parameters')
+            (params.get('headerParameters') or {}).get('parameters')
+            or (params.get('headers') or {}).get('parameters')
             or []
         )
         for h in headers if isinstance(headers, list) else []:
@@ -150,6 +150,8 @@ def main():
     files: list[tuple[Path, Path]] = []
     in_path = Path(args.input)
     if args.batch:
+        if not args.lint_only and not args.output:
+            ap.error('--batch requires an output directory unless --lint-only is set')
         out_path = Path(args.output) if args.output else None
         for src in sorted(in_path.glob('*.json')):
             if out_path:
