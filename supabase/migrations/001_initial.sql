@@ -285,12 +285,19 @@ CREATE TABLE IF NOT EXISTS operscale.llm_calls (
 );
 CREATE INDEX IF NOT EXISTS idx_llm_calls_order ON operscale.llm_calls(order_id);
 
--- ─── Realtime publication ────────────────────────────
-ALTER PUBLICATION supabase_realtime ADD TABLE operscale.orders;
-ALTER PUBLICATION supabase_realtime ADD TABLE operscale.videos;
-ALTER PUBLICATION supabase_realtime ADD TABLE operscale.scenes;
-ALTER PUBLICATION supabase_realtime ADD TABLE operscale.production_log;
-ALTER PUBLICATION supabase_realtime ADD TABLE operscale.gate_decisions;
+-- ─── Realtime publication (idempotent — ALTER PUBLICATION ADD has no IF NOT EXISTS) ─
+DO $$
+DECLARE t TEXT;
+BEGIN
+  FOR t IN SELECT unnest(ARRAY['orders','videos','scenes','production_log','gate_decisions']) LOOP
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_publication_tables
+      WHERE pubname='supabase_realtime' AND schemaname='operscale' AND tablename=t
+    ) THEN
+      EXECUTE format('ALTER PUBLICATION supabase_realtime ADD TABLE operscale.%I', t);
+    END IF;
+  END LOOP;
+END $$;
 
 -- ─── REPLICA IDENTITY FULL (gotcha #4 from fork manual) ─
 ALTER TABLE operscale.orders REPLICA IDENTITY FULL;
@@ -310,7 +317,10 @@ BEGIN
   ])
   LOOP
     EXECUTE format('ALTER TABLE operscale.%I ENABLE ROW LEVEL SECURITY', t);
+    -- DROP+CREATE pattern because PG doesn't support CREATE POLICY IF NOT EXISTS
+    EXECUTE format('DROP POLICY IF EXISTS %I_anon_deny ON operscale.%I', t, t);
     EXECUTE format('CREATE POLICY %I_anon_deny ON operscale.%I AS RESTRICTIVE FOR ALL TO anon USING (false)', t, t);
+    EXECUTE format('DROP POLICY IF EXISTS %I_service_role_all ON operscale.%I', t, t);
     EXECUTE format('CREATE POLICY %I_service_role_all ON operscale.%I AS PERMISSIVE FOR ALL TO service_role USING (true) WITH CHECK (true)', t, t);
   END LOOP;
 END $$;
