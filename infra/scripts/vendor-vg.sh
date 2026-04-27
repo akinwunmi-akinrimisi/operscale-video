@@ -32,7 +32,7 @@ WORKFLOWS=(
   "WF_ASSEMBLY_WATCHDOG.json"
   "WF_ENDCARD.json"
   "WF_MUSIC_GENERATE.json"
-  "WF_SHORTS_PRODUCE.json"
+  "WF_MASTER.json"
   "WF_QA_CHECK.json"
 )
 

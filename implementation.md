@@ -145,7 +145,7 @@ Fix anything broken in Days 1–6. Don't rush ahead.
 ### Day 10 — Foundation: end-to-end render dry run
 
 **Tasks:**
-- Compose all the workflows into a single trigger chain via `WF_SHORTS_PRODUCE` adaptation (renamed `OPS_RENDER_PIPELINE`)
+- Compose all the workflows into a single trigger chain via `WF_MASTER` adaptation (renamed `OPS_RENDER_PIPELINE`)
 - POST to one webhook → all stages fire in sequence
 - Verify resume behaviour: kill n8n container mid-render, restart, verify pipeline picks up where it left off
 

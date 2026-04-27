@@ -119,7 +119,7 @@ Three groups: cherry-picked from VG (with rebind), newly authored, already in sc
 | `WF_ASSEMBLY_WATCHDOG` | `OPS_ASSEMBLY_WATCHDOG` | Cron monitoring stuck FFmpeg renders | ✅ Day 8 |
 | `WF_ENDCARD` | `OPS_ENDCARD` | Standard+ end-card | ⚠️ imported, unused |
 | `WF_MUSIC_GENERATE` | `OPS_MUSIC_GENERATE` | Vertex AI Lyria (Standard+ tier) | ⚠️ imported, unused |
-| `WF_SHORTS_PRODUCE` | `OPS_RENDER_PIPELINE` | Top-level orchestrator (curl entry point) | ✅ Day 10 |
+| `WF_MASTER` | `OPS_RENDER_PIPELINE` | Top-level orchestrator (curl entry point) | ✅ Day 10 |
 | `WF_QA_CHECK` | `OPS_QA_CHECK` | 13 automated render-quality checks | ✅ Day 11 |
 
 **4 host-side scripts** — go into `infra/host-scripts/`; originals saved to `_vendored_for_reference/keep-list-original/host-scripts/`:
