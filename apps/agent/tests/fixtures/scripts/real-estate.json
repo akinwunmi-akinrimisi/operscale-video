@@ -1,0 +1,63 @@
+{
+  "tier": "pilot",
+  "niche": "real-estate",
+  "production_register": "OPERSCALE_01_DOCUMENTARY",
+  "duration_target_sec": 22,
+  "scenes": [
+    {
+      "scene_number": 1,
+      "scene_id": "test-re-001-s1",
+      "narration_text": "Three bedrooms. Two views. One decision.",
+      "image_prompt": "modern Lagos apartment balcony at golden hour, two leather armchairs, ocean view, cinematic depth, 35mm film",
+      "composition_prefix": "wide establishing shot",
+      "color_mood": "warm-amber",
+      "zoom_direction": "slow_push",
+      "transition_to_next": "fade",
+      "caption_highlight_word": "decision"
+    },
+    {
+      "scene_number": 2,
+      "scene_id": "test-re-001-s2",
+      "narration_text": "Lekki Phase One. Built for the family that scaled.",
+      "image_prompt": "luxury duplex exterior, Lagos suburb, mature trees, soft afternoon light, no people visible",
+      "composition_prefix": "low angle three-quarter",
+      "color_mood": "warm-amber",
+      "zoom_direction": "slight_pan_right",
+      "transition_to_next": "cut",
+      "caption_highlight_word": "scaled"
+    },
+    {
+      "scene_number": 3,
+      "scene_id": "test-re-001-s3",
+      "narration_text": "Each room finished to the standard you'd expect from yourself.",
+      "image_prompt": "interior master bedroom, herringbone wood floor, neutral palette, large window soft light, lifestyle staging no people",
+      "composition_prefix": "medium shot",
+      "color_mood": "neutral-cinematic",
+      "zoom_direction": "hold",
+      "transition_to_next": "fade",
+      "caption_highlight_word": "yourself"
+    },
+    {
+      "scene_number": 4,
+      "scene_id": "test-re-001-s4",
+      "narration_text": "Eight units left. Pre-launch pricing ends Sunday.",
+      "image_prompt": "key handover moment, two professional hands meeting, blurred apartment background, bokeh",
+      "composition_prefix": "extreme close",
+      "color_mood": "warm-amber",
+      "zoom_direction": "slow_pull",
+      "transition_to_next": "cut",
+      "caption_highlight_word": "Sunday"
+    },
+    {
+      "scene_number": 5,
+      "scene_id": "test-re-001-s5",
+      "narration_text": "Talk to us before they are gone.",
+      "image_prompt": "WhatsApp icon over warm beige background, minimal aesthetic, ample negative space",
+      "composition_prefix": "graphic plate",
+      "color_mood": "warm-amber",
+      "zoom_direction": "static",
+      "transition_to_next": "endcard",
+      "caption_highlight_word": "gone"
+    }
+  ]
+}
