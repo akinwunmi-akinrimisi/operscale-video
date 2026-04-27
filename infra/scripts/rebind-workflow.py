@@ -176,6 +176,45 @@ def rebind_postgrest_schema_headers(workflow: dict) -> None:
             params['sendHeaders'] = True
 
 
+SUBWORKFLOW_URL_PATTERN = re.compile(r'(\}\})/(?!operscale/)([a-zA-Z][\w/-]*)')
+
+
+def rebind_subworkflow_fire_urls(workflow: dict) -> None:
+    """Prefix internal sub-workflow webhook calls with `/operscale/`.
+
+    HTTP-request nodes that fire downstream sub-workflows in n8n use the
+    pattern `={{ $env.N8N_WEBHOOK_BASE }}/<path>`. At runtime, N8N_WEBHOOK_BASE
+    resolves to `https://host/webhook` and the full URL becomes
+    `https://host/webhook/<path>`. The path component lives in the JSON as a
+    bare suffix after the `}}` of the env-var expression — the literal string
+    `/webhook/` never appears in the JSON, so the legacy text regex on
+    `/webhook/` could not catch it.
+
+    Effect of this gap (Day-6 evidence): OPS_TTS_AUDIO's "Fire Images Workflow"
+    URL was `={{ $env.N8N_WEBHOOK_BASE }}/production/images`, which at runtime
+    hits VG's WF_IMAGE_GENERATION at /webhook/production/images instead of our
+    OPS_IMAGE_GENERATION at /webhook/operscale/production/images.
+
+    This pass rewrites `}}/path` → `}}/operscale/path` only inside HTTP-request
+    nodes. Idempotent (negative lookahead skips already-prefixed URLs).
+    """
+    nodes = workflow.get('nodes', []) if isinstance(workflow, dict) else []
+    for node in nodes:
+        if not isinstance(node, dict):
+            continue
+        if node.get('type') != HTTP_REQUEST_NODE_TYPE:
+            continue
+        params = node.get('parameters')
+        if not isinstance(params, dict):
+            continue
+        url = params.get('url')
+        if not isinstance(url, str) or '$env.N8N_WEBHOOK_BASE' not in url:
+            continue
+        new_url = SUBWORKFLOW_URL_PATTERN.sub(r'\1/operscale/\2', url)
+        if new_url != url:
+            params['url'] = new_url
+
+
 def rebind(workflow: dict) -> dict:
     """Apply rebind transforms; return new dict (original untouched)."""
     out = transform_value(workflow)
@@ -188,6 +227,8 @@ def rebind(workflow: dict) -> dict:
     # PostgREST schema headers (PostgREST defaults to first schema in PGRST_DB_SCHEMAS;
     # without these headers our rest/v1/<table> calls would land in public.*)
     rebind_postgrest_schema_headers(out)
+    # Sub-workflow Fire URLs ({{ $env.N8N_WEBHOOK_BASE }}/<path> → /operscale/<path>)
+    rebind_subworkflow_fire_urls(out)
     return out
 
 

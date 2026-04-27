@@ -168,7 +168,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.N8N_WEBHOOK_BASE }}/script/generate",
+        "url": "={{ $env.N8N_WEBHOOK_BASE }}/operscale/script/generate",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
@@ -209,7 +209,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.N8N_WEBHOOK_BASE }}/classify-scenes",
+        "url": "={{ $env.N8N_WEBHOOK_BASE }}/operscale/classify-scenes",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
@@ -250,7 +250,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.N8N_WEBHOOK_BASE }}/production/trigger",
+        "url": "={{ $env.N8N_WEBHOOK_BASE }}/operscale/production/trigger",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
@@ -291,7 +291,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.N8N_WEBHOOK_BASE }}/production/trigger",
+        "url": "={{ $env.N8N_WEBHOOK_BASE }}/operscale/production/trigger",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
@@ -332,7 +332,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.N8N_WEBHOOK_BASE }}/production/trigger",
+        "url": "={{ $env.N8N_WEBHOOK_BASE }}/operscale/production/trigger",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,

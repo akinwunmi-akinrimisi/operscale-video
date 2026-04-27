@@ -887,7 +887,7 @@
       ],
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.N8N_WEBHOOK_BASE }}/production/trigger",
+        "url": "={{ $env.N8N_WEBHOOK_BASE }}/operscale/production/trigger",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -1321,7 +1321,7 @@
       ],
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.N8N_WEBHOOK_BASE }}/thumbnail/generate",
+        "url": "={{ $env.N8N_WEBHOOK_BASE }}/operscale/thumbnail/generate",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -1354,7 +1354,7 @@
       ],
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.N8N_WEBHOOK_BASE }}/metadata/generate",
+        "url": "={{ $env.N8N_WEBHOOK_BASE }}/operscale/metadata/generate",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [

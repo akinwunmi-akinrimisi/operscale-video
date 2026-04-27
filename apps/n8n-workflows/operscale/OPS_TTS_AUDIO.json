@@ -995,7 +995,7 @@
       ],
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.N8N_WEBHOOK_BASE }}/production/images",
+        "url": "={{ $env.N8N_WEBHOOK_BASE }}/operscale/production/images",
         "authentication": "none",
         "sendHeaders": true,
         "headerParameters": {
@@ -1028,7 +1028,7 @@
       ],
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.N8N_WEBHOOK_BASE }}/production/i2v",
+        "url": "={{ $env.N8N_WEBHOOK_BASE }}/operscale/production/i2v",
         "authentication": "none",
         "sendHeaders": true,
         "headerParameters": {
@@ -1061,7 +1061,7 @@
       ],
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.N8N_WEBHOOK_BASE }}/production/t2v",
+        "url": "={{ $env.N8N_WEBHOOK_BASE }}/operscale/production/t2v",
         "authentication": "none",
         "sendHeaders": true,
         "headerParameters": {
