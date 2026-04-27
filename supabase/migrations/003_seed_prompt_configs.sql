@@ -17,7 +17,7 @@ DECLARE
 BEGIN
   FOREACH n IN ARRAY niches LOOP
     FOREACH pt IN ARRAY prompt_types LOOP
-      INSERT INTO prompt_configs (niche, prompt_type, prompt_text, version, is_active)
+      INSERT INTO operscale.prompt_configs (niche, prompt_type, prompt_text, version, is_active)
       VALUES (
         n,
         pt,

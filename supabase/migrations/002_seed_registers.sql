@@ -4,7 +4,7 @@
 -- See pricing-and-packages.md and ADR 0013 for the cinema-lane positioning.
 -- ═══════════════════════════════════════════════════
 
-INSERT INTO production_registers (register_id, name, short_description, accent_color_hex, config) VALUES
+INSERT INTO operscale.production_registers (register_id, name, short_description, accent_color_hex, config) VALUES
 ('OPERSCALE_01_DOCUMENTARY',
  'Documentary',
  'Default cinematic style for Pilot, Standard, and most Creative Pod orders',

@@ -2,6 +2,11 @@
 -- Operscale Video Ads — Initial Schema (12 tables)
 -- See docs/VISION_GRIDAI_FORK_MANUAL.md §5 for design rationale.
 --
+-- Schema isolation: all Operscale tables live in the `operscale` schema,
+-- not `public`. The shared Supabase already has a VG-owned `public` schema
+-- with collisions on `scenes`, `production_log`, `production_registers`,
+-- and `prompt_configs`. See docs/foundation/infrastructure-state-day-3.md.
+--
 -- pipeline_stage CHECK constraint values are the canonical state names
 -- from AGENT.md's LangGraph state machine. Do not deviate without
 -- updating both the migration and AGENT.md atomically.
@@ -9,8 +14,10 @@
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
+CREATE SCHEMA IF NOT EXISTS operscale;
+
 -- ─── Customers ───────────────────────────────────────
-CREATE TABLE IF NOT EXISTS customers (
+CREATE TABLE IF NOT EXISTS operscale.customers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email TEXT NOT NULL UNIQUE,
   whatsapp_phone TEXT,
@@ -22,12 +29,12 @@ CREATE TABLE IF NOT EXISTS customers (
   last_order_at TIMESTAMPTZ,
   marketing_opt_in BOOLEAN DEFAULT false
 );
-CREATE INDEX IF NOT EXISTS idx_customers_email ON customers(email);
+CREATE INDEX IF NOT EXISTS idx_customers_email ON operscale.customers(email);
 
 -- ─── Briefs (raw form submissions) ───────────────────
-CREATE TABLE IF NOT EXISTS briefs (
+CREATE TABLE IF NOT EXISTS operscale.briefs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  customer_id UUID REFERENCES customers(id) ON DELETE CASCADE,
+  customer_id UUID REFERENCES operscale.customers(id) ON DELETE CASCADE,
   niche TEXT NOT NULL,
   business_name TEXT,
   website_url TEXT,
@@ -49,15 +56,15 @@ CREATE TABLE IF NOT EXISTS briefs (
   brand_colors_hex JSONB,
   logo_storage_url TEXT
 );
-CREATE INDEX IF NOT EXISTS idx_briefs_customer ON briefs(customer_id);
-CREATE INDEX IF NOT EXISTS idx_briefs_save_token ON briefs(save_token);
+CREATE INDEX IF NOT EXISTS idx_briefs_customer ON operscale.briefs(customer_id);
+CREATE INDEX IF NOT EXISTS idx_briefs_save_token ON operscale.briefs(save_token);
 
 -- ─── Orders ──────────────────────────────────────────
 -- pipeline_stage values match the LangGraph state machine in AGENT.md.
-CREATE TABLE IF NOT EXISTS orders (
+CREATE TABLE IF NOT EXISTS operscale.orders (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  customer_id UUID NOT NULL REFERENCES customers(id),
-  brief_id UUID NOT NULL REFERENCES briefs(id),
+  customer_id UUID NOT NULL REFERENCES operscale.customers(id),
+  brief_id UUID NOT NULL REFERENCES operscale.briefs(id),
   tier TEXT NOT NULL CHECK (tier IN ('pilot', 'standard', 'creative_pod')),
   amount_paid_kobo INTEGER NOT NULL,
   paystack_tx_ref TEXT UNIQUE,
@@ -102,14 +109,14 @@ CREATE TABLE IF NOT EXISTS orders (
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
-CREATE INDEX IF NOT EXISTS idx_orders_customer ON orders(customer_id);
-CREATE INDEX IF NOT EXISTS idx_orders_stage ON orders(pipeline_stage);
-CREATE INDEX IF NOT EXISTS idx_orders_created ON orders(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_orders_customer ON operscale.orders(customer_id);
+CREATE INDEX IF NOT EXISTS idx_orders_stage ON operscale.orders(pipeline_stage);
+CREATE INDEX IF NOT EXISTS idx_orders_created ON operscale.orders(created_at DESC);
 
 -- ─── Videos (1 per Pilot/Standard order; 3 per Creative Pod) ─
-CREATE TABLE IF NOT EXISTS videos (
+CREATE TABLE IF NOT EXISTS operscale.videos (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  order_id UUID NOT NULL REFERENCES operscale.orders(id) ON DELETE CASCADE,
   video_number INTEGER NOT NULL,
   approved_angle JSONB,
   script_json JSONB,
@@ -131,14 +138,14 @@ CREATE TABLE IF NOT EXISTS videos (
   updated_at TIMESTAMPTZ DEFAULT now(),
   UNIQUE (order_id, video_number)
 );
-CREATE INDEX IF NOT EXISTS idx_videos_order ON videos(order_id);
+CREATE INDEX IF NOT EXISTS idx_videos_order ON operscale.videos(order_id);
 
 -- ─── Scenes (column names cloned VERBATIM from VG) ───
 -- Render workflows reference these by name; do not rename.
-CREATE TABLE IF NOT EXISTS scenes (
+CREATE TABLE IF NOT EXISTS operscale.scenes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  video_id UUID NOT NULL REFERENCES videos(id) ON DELETE CASCADE,
-  order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  video_id UUID NOT NULL REFERENCES operscale.videos(id) ON DELETE CASCADE,
+  order_id UUID NOT NULL REFERENCES operscale.orders(id) ON DELETE CASCADE,
   scene_number INTEGER NOT NULL,
   scene_id TEXT NOT NULL,
   narration_text TEXT,
@@ -171,12 +178,12 @@ CREATE TABLE IF NOT EXISTS scenes (
   skip_reason TEXT,
   created_at TIMESTAMPTZ DEFAULT now()
 );
-CREATE INDEX IF NOT EXISTS idx_scenes_video ON scenes(video_id);
-CREATE INDEX IF NOT EXISTS idx_scenes_order ON scenes(order_id);
-CREATE INDEX IF NOT EXISTS idx_scenes_status ON scenes(video_id, audio_status);
+CREATE INDEX IF NOT EXISTS idx_scenes_video ON operscale.scenes(video_id);
+CREATE INDEX IF NOT EXISTS idx_scenes_order ON operscale.scenes(order_id);
+CREATE INDEX IF NOT EXISTS idx_scenes_status ON operscale.scenes(video_id, audio_status);
 
 -- ─── Production registers ────────────────────────────
-CREATE TABLE IF NOT EXISTS production_registers (
+CREATE TABLE IF NOT EXISTS operscale.production_registers (
   register_id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   short_description TEXT,
@@ -189,7 +196,7 @@ CREATE TABLE IF NOT EXISTS production_registers (
 );
 
 -- ─── Prompt configs ──────────────────────────────────
-CREATE TABLE IF NOT EXISTS prompt_configs (
+CREATE TABLE IF NOT EXISTS operscale.prompt_configs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   niche TEXT NOT NULL,
   prompt_type TEXT NOT NULL,
@@ -201,24 +208,24 @@ CREATE TABLE IF NOT EXISTS prompt_configs (
 );
 
 -- ─── Production log ──────────────────────────────────
-CREATE TABLE IF NOT EXISTS production_log (
+CREATE TABLE IF NOT EXISTS operscale.production_log (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  order_id UUID REFERENCES orders(id),
-  video_id UUID REFERENCES videos(id),
-  customer_id UUID REFERENCES customers(id),
+  order_id UUID REFERENCES operscale.orders(id),
+  video_id UUID REFERENCES operscale.videos(id),
+  customer_id UUID REFERENCES operscale.customers(id),
   stage TEXT NOT NULL,
   action TEXT NOT NULL,
   details JSONB,
   created_at TIMESTAMPTZ DEFAULT now()
 );
-CREATE INDEX IF NOT EXISTS idx_log_order ON production_log(order_id);
-CREATE INDEX IF NOT EXISTS idx_log_video ON production_log(video_id);
+CREATE INDEX IF NOT EXISTS idx_log_order ON operscale.production_log(order_id);
+CREATE INDEX IF NOT EXISTS idx_log_video ON operscale.production_log(video_id);
 
 -- ─── Payments (Paystack) ─────────────────────────────
-CREATE TABLE IF NOT EXISTS payments (
+CREATE TABLE IF NOT EXISTS operscale.payments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  order_id UUID NOT NULL REFERENCES orders(id),
-  customer_id UUID NOT NULL REFERENCES customers(id),
+  order_id UUID NOT NULL REFERENCES operscale.orders(id),
+  customer_id UUID NOT NULL REFERENCES operscale.customers(id),
   paystack_tx_ref TEXT NOT NULL UNIQUE,
   amount_kobo INTEGER NOT NULL,
   currency TEXT DEFAULT 'NGN',
@@ -230,26 +237,26 @@ CREATE TABLE IF NOT EXISTS payments (
   refund_reason TEXT,
   created_at TIMESTAMPTZ DEFAULT now()
 );
-CREATE INDEX IF NOT EXISTS idx_payments_order ON payments(order_id);
+CREATE INDEX IF NOT EXISTS idx_payments_order ON operscale.payments(order_id);
 
 -- ─── Gate decisions (founder audit) ──────────────────
-CREATE TABLE IF NOT EXISTS gate_decisions (
+CREATE TABLE IF NOT EXISTS operscale.gate_decisions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  order_id UUID NOT NULL REFERENCES orders(id),
-  video_id UUID REFERENCES videos(id),
+  order_id UUID NOT NULL REFERENCES operscale.orders(id),
+  video_id UUID REFERENCES operscale.videos(id),
   gate_number TEXT NOT NULL CHECK (gate_number IN ('0', '1', '2', '3-bis', '3')),
   decision TEXT NOT NULL CHECK (decision IN ('approved', 'rejected', 'edit_requested', 'regenerate', 'refund', 'override_with_warning')),
   feedback TEXT,
   decided_by TEXT NOT NULL,
   decided_at TIMESTAMPTZ DEFAULT now()
 );
-CREATE INDEX IF NOT EXISTS idx_gates_order ON gate_decisions(order_id);
-CREATE INDEX IF NOT EXISTS idx_gates_decided_at ON gate_decisions(decided_at DESC);
+CREATE INDEX IF NOT EXISTS idx_gates_order ON operscale.gate_decisions(order_id);
+CREATE INDEX IF NOT EXISTS idx_gates_decided_at ON operscale.gate_decisions(decided_at DESC);
 
 -- ─── Order consent (Creative Pod custom avatar + voice cloning) ─
-CREATE TABLE IF NOT EXISTS order_consent (
+CREATE TABLE IF NOT EXISTS operscale.order_consent (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  order_id UUID NOT NULL REFERENCES operscale.orders(id) ON DELETE CASCADE,
   consent_type TEXT NOT NULL CHECK (consent_type IN ('voice_clone', 'face_avatar', 'both')),
   photo_storage_url TEXT,
   voice_sample_storage_url TEXT,
@@ -264,10 +271,10 @@ CREATE TABLE IF NOT EXISTS order_consent (
 );
 
 -- ─── LLM call audit ──────────────────────────────────
-CREATE TABLE IF NOT EXISTS llm_calls (
+CREATE TABLE IF NOT EXISTS operscale.llm_calls (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  order_id UUID REFERENCES orders(id),
-  video_id UUID REFERENCES videos(id),
+  order_id UUID REFERENCES operscale.orders(id),
+  video_id UUID REFERENCES operscale.videos(id),
   node_name TEXT NOT NULL,
   model TEXT NOT NULL,
   input_tokens INTEGER,
@@ -276,21 +283,21 @@ CREATE TABLE IF NOT EXISTS llm_calls (
   duration_ms INTEGER,
   called_at TIMESTAMPTZ DEFAULT now()
 );
-CREATE INDEX IF NOT EXISTS idx_llm_calls_order ON llm_calls(order_id);
+CREATE INDEX IF NOT EXISTS idx_llm_calls_order ON operscale.llm_calls(order_id);
 
 -- ─── Realtime publication ────────────────────────────
-ALTER PUBLICATION supabase_realtime ADD TABLE orders;
-ALTER PUBLICATION supabase_realtime ADD TABLE videos;
-ALTER PUBLICATION supabase_realtime ADD TABLE scenes;
-ALTER PUBLICATION supabase_realtime ADD TABLE production_log;
-ALTER PUBLICATION supabase_realtime ADD TABLE gate_decisions;
+ALTER PUBLICATION supabase_realtime ADD TABLE operscale.orders;
+ALTER PUBLICATION supabase_realtime ADD TABLE operscale.videos;
+ALTER PUBLICATION supabase_realtime ADD TABLE operscale.scenes;
+ALTER PUBLICATION supabase_realtime ADD TABLE operscale.production_log;
+ALTER PUBLICATION supabase_realtime ADD TABLE operscale.gate_decisions;
 
 -- ─── REPLICA IDENTITY FULL (gotcha #4 from fork manual) ─
-ALTER TABLE orders REPLICA IDENTITY FULL;
-ALTER TABLE videos REPLICA IDENTITY FULL;
-ALTER TABLE scenes REPLICA IDENTITY FULL;
-ALTER TABLE production_log REPLICA IDENTITY FULL;
-ALTER TABLE gate_decisions REPLICA IDENTITY FULL;
+ALTER TABLE operscale.orders REPLICA IDENTITY FULL;
+ALTER TABLE operscale.videos REPLICA IDENTITY FULL;
+ALTER TABLE operscale.scenes REPLICA IDENTITY FULL;
+ALTER TABLE operscale.production_log REPLICA IDENTITY FULL;
+ALTER TABLE operscale.gate_decisions REPLICA IDENTITY FULL;
 
 -- ─── RLS lockdown ────────────────────────────────────
 DO $$
@@ -302,8 +309,8 @@ BEGIN
     'production_registers','prompt_configs'
   ])
   LOOP
-    EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
-    EXECUTE format('CREATE POLICY %I_anon_deny ON %I AS RESTRICTIVE FOR ALL TO anon USING (false)', t, t);
-    EXECUTE format('CREATE POLICY %I_service_role_all ON %I AS PERMISSIVE FOR ALL TO service_role USING (true) WITH CHECK (true)', t, t);
+    EXECUTE format('ALTER TABLE operscale.%I ENABLE ROW LEVEL SECURITY', t);
+    EXECUTE format('CREATE POLICY %I_anon_deny ON operscale.%I AS RESTRICTIVE FOR ALL TO anon USING (false)', t, t);
+    EXECUTE format('CREATE POLICY %I_service_role_all ON operscale.%I AS PERMISSIVE FOR ALL TO service_role USING (true) WITH CHECK (true)', t, t);
   END LOOP;
 END $$;
