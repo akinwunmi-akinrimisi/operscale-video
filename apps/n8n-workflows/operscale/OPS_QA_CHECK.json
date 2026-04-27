@@ -1,5 +1,6 @@
 {
   "name": "OPS_QA_CHECK",
+  "active": false,
   "nodes": [
     {
       "id": "trigger-1",
@@ -45,6 +46,5 @@
     "saveDataErrorExecution": "all",
     "callerPolicy": "workflowsFromSameOwner",
     "availableInMCP": false
-  },
-  "active": false
+  }
 }

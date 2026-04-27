@@ -1,5 +1,6 @@
 {
   "name": "OPS_MASTER",
+  "active": false,
   "nodes": [
     {
       "parameters": {
@@ -739,6 +740,7 @@
   },
   "settings": {
     "executionOrder": "v1",
-    "callerPolicy": "workflowsFromSameOwner"
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
   }
 }

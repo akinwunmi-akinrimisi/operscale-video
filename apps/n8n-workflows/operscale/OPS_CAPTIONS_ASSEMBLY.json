@@ -1,5 +1,6 @@
 {
   "name": "OPS_CAPTIONS_ASSEMBLY",
+  "active": true,
   "nodes": [
     {
       "id": "webhook-assembly-trigger",
@@ -1921,6 +1922,5 @@
     "executionOrder": "v1",
     "callerPolicy": "workflowsFromSameOwner",
     "availableInMCP": false
-  },
-  "active": true
+  }
 }

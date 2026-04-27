@@ -1,5 +1,6 @@
 {
   "name": "OPS_MUSIC_GENERATE",
+  "active": true,
   "nodes": [
     {
       "id": "trigger-1",
@@ -70,6 +71,5 @@
     "saveDataSuccessExecution": "none",
     "callerPolicy": "workflowsFromSameOwner",
     "availableInMCP": false
-  },
-  "active": true
+  }
 }

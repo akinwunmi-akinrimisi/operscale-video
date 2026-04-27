@@ -1,5 +1,6 @@
 {
   "name": "OPS_SCENE_I2V_PROCESSOR",
+  "active": true,
   "nodes": [
     {
       "id": "webhook-trigger",
@@ -322,6 +323,5 @@
     "saveDataSuccessExecution": "all",
     "callerPolicy": "workflowsFromSameOwner",
     "availableInMCP": false
-  },
-  "active": true
+  }
 }

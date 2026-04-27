@@ -1,5 +1,6 @@
 {
   "name": "OPS_SCENE_IMAGE_PROCESSOR",
+  "active": true,
   "nodes": [
     {
       "id": "webhook-trigger",
@@ -322,6 +323,5 @@
     "availableInMCP": false,
     "saveDataErrorExecution": "all",
     "saveDataSuccessExecution": "all"
-  },
-  "active": true
+  }
 }

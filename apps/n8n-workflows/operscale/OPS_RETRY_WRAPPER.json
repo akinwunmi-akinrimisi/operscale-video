@@ -1,5 +1,6 @@
 {
   "name": "OPS_RETRY_WRAPPER",
+  "active": false,
   "nodes": [
     {
       "id": "trigger-1",
@@ -68,6 +69,5 @@
     "saveDataSuccessExecution": "none",
     "callerPolicy": "workflowsFromSameOwner",
     "availableInMCP": false
-  },
-  "active": false
+  }
 }

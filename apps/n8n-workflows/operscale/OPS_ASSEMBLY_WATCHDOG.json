@@ -1,5 +1,6 @@
 {
   "name": "OPS_ASSEMBLY_WATCHDOG",
+  "active": true,
   "nodes": [
     {
       "id": "schedule-trigger",
@@ -204,6 +205,5 @@
     "saveDataSuccessExecution": "none",
     "callerPolicy": "workflowsFromSameOwner",
     "availableInMCP": false
-  },
-  "active": true
+  }
 }
