@@ -2,6 +2,7 @@
 
 > Snapshot date: 2026-04-27
 > Source: `infra/scripts/recon-vps.sh` output, run on `srv1297445.hstgr.cloud`.
+> Sections 1, 3, 4, 6, 7 of the script's output are reproduced verbatim below. Section 5 (Supabase containers) is enumerated within section 1's docker listing; section 8 (Traefik) is captured in the drift table; section 9 (disk + memory) returned nominal values and is not reproduced.
 > Read-only audit. No writes performed.
 
 ## Summary verdict
@@ -93,6 +94,10 @@ Decision input for Day 9 (★5 caption-burn integration choice):
 
 The service is active, healthy, and listening on `172.18.0.1:9998`. The systemd unit is enabled (will survive reboots). `/data/n8n-production` exists and is writable (`drwxrwxrwx`). The symlink approach (`/data/n8n-production/operscale` → our job output directory) is viable with no detected conflict.
 
+Specifically: `/data/n8n-production` is world-writable, so creating a sibling directory `/data/n8n-production/operscale/` (or a symlink there) is non-destructive to VG's existing job output tree, and the active caption-burn service can reach files placed there without configuration changes.
+
+Caveat: this recon listed `/data/` (parent) but did not enumerate `/data/n8n-production/`'s contents. The "no conflict at `/data/n8n-production/operscale`" conclusion is inferred from the writable parent — Day 9 ★5 should verify `ls /data/n8n-production/` before creating the path or symlink, in case a same-named entry already exists.
+
 ---
 
 ## Filesystem layout
@@ -175,7 +180,18 @@ The VPS is a shared host with multiple unrelated projects. The following contain
 | `code-executor` | 2 weeks | **0.0.0.0:3003** (unhealthy) | ⚠️ Occupies host port 3003 |
 | `gcp-token-service` | 2 weeks | **0.0.0.0:3001** | ⚠️ Occupies host port 3001 |
 
-**Occupied host ports to avoid on Day 4:** 80, 443 (Traefik), 3001, 3002, 3003, 5678 (n8n, loopback), 8080.
+**Host ports occupied on Day 4 (hard conflicts — must NOT bind any operscale service to these on `0.0.0.0`):**
+
+- `80`, `443` — `n8n-traefik-1` (HTTP/HTTPS reverse proxy)
+- `3001` — `gcp-token-service`
+- `3002` — `ffmpeg-api`
+- `3003` — `code-executor`
+- `8080` — `audio-merger` (host-bound). Note: `supabase-meta-1` also exposes 8080/tcp internally; not a host conflict but multiply occupied at the container-network level.
+
+**Loopback-only bindings (NOT hard conflicts; binding `0.0.0.0:<port>` would shadow the loopback service in proxy routing — be deliberate if doing so):**
+
+- `127.0.0.1:5678` — `n8n-n8n-1`
+- `127.0.0.1:3005` — `jobops` (mapped to container's 3001)
 
 **Note on `evolution-api`:** Our delivery layer (ADR 0005) uses Evolution API for WhatsApp. The container `evolution-api` is already running on this VPS. Day 4 / delivery configuration should confirm whether this is the shared instance we should integrate with or whether a separate instance is needed.
 
@@ -184,6 +200,8 @@ The VPS is a shared host with multiple unrelated projects. The following contain
 ## Decisions deferred to later Days
 
 - **Day 4**: Operscale containers compose file — bind mount paths confirmed against this recon. Avoid host ports 80, 443, 3001, 3002, 3003, 8080. Mount application data under `/docker/operscale-video-ads/` for isolation.
-- **Day 5**: ★3 migration apply — add a pre-flight assertion (`SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name = ANY(ARRAY[...our 12 names...])`) before the DDL to guard against the 121-table public schema containing a surprise collision not visible from the Realtime publication alone.
+- **Day 5**: ★3 migration apply —
+  1. **Pre-flight collision check**: Add a `DO $$ BEGIN IF (SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name = ANY(ARRAY['customer_orders','videos','assets','events','agent_runs','gates','outbox','paystack_events','delivery_log','niches','tier_specs'])) > 0 THEN RAISE EXCEPTION 'Collision detected'; END IF; END $$;` block before the DDL to guard against a surprise collision in the 121-table public schema not visible from the Realtime publication alone.
+  2. **RLS DO-block isolation**: Confirm the RLS-policy DO blocks in migrations 001 and 004 reference only our newly-created tables — they must NOT touch RLS on any existing VG table. Verify by reading each `ALTER TABLE … ENABLE ROW LEVEL SECURITY` and `CREATE POLICY` statement against the table-collision check above.
 - **Day 9**: ★5 caption-burn path strategy — symlink is the recommended default. `/data/n8n-production` is world-writable, caption-burn service is healthy at `:9998`. Create `/data/n8n-production/operscale/` as the job output root and symlink as needed.
 - **Evolution API**: Confirm with project owner whether `evolution-api` container on this VPS is the intended integration target for WhatsApp delivery, or whether a separate instance is required.
