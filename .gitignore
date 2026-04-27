@@ -62,3 +62,8 @@ _archive/
 
 # ─── n8n local creds ────────────────────────────────────────
 .n8n/
+
+# ─── Claude Code: keep project commands, exclude per-user settings ─
+.claude/settings.local.json
+.claude/cache/
+
