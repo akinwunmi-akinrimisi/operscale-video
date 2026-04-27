@@ -1,0 +1,60 @@
+# Operscale Video Ads — Docker Compose
+# Deploys operscale-web (Next.js 15) and operscale-agent (Python 3.11 LangGraph)
+# on the same VPS as Vision GridAI. Both share Traefik, Postgres, n8n, and
+# the host-side caption-burn service.
+#
+# In Foundation phase both services run as PLACEHOLDER images — real Dockerfiles
+# arrive in Customer-flow phase. Foundation only needs:
+#   - Containers running (so Traefik wiring + bind mounts can be verified)
+#   - Bind mount of /data/operscale-production into n8n-n8n-1
+#
+# Read alongside docs/superpowers/specs/2026-04-27-foundation-design.md §3.
+# Brand domain locked: plovera.shop (per ADR 0017).
+
+version: '3.8'
+
+services:
+  operscale-web:
+    image: nginx:1.27-alpine  # Foundation placeholder; real Dockerfile in Customer-flow
+    container_name: operscale-web
+    restart: unless-stopped
+    networks:
+      - traefik-net
+      - operscale-net
+    volumes:
+      - /data/operscale-production:/usr/share/nginx/html/data:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.operscale-web.rule=Host(`plovera.shop`) || Host(`www.plovera.shop`)"
+      - "traefik.http.routers.operscale-web.tls=true"
+      - "traefik.http.routers.operscale-web.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.operscale-web.entrypoints=websecure"
+      - "traefik.http.services.operscale-web.loadbalancer.server.port=80"
+
+  operscale-agent:
+    image: python:3.11-slim  # Foundation placeholder; real Dockerfile in Customer-flow
+    container_name: operscale-agent
+    restart: unless-stopped
+    command: ["sleep", "infinity"]  # Placeholder — agent skeleton lands in Customer-flow
+    networks:
+      - operscale-net
+    volumes:
+      - /data/operscale-production:/data/operscale-production
+      - ./apps/agent:/app:ro
+    working_dir: /app
+    env_file:
+      - /docker/operscale-video-ads/.env.agent
+
+networks:
+  traefik-net:
+    external: true
+    name: traefik-net
+  operscale-net:
+    driver: bridge
+
+# n8n bind-mount addition required separately on VPS:
+#   Edit /docker/n8n/docker-compose.override.yml to add:
+#     volumes:
+#       - /data/operscale-production:/tmp/operscale-production
+#   Then restart n8n stack: cd /docker/n8n && docker compose up -d
+# This is a ★ named gate operation — done manually with confirmation.
