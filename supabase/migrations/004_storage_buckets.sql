@@ -19,17 +19,25 @@ VALUES
 ON CONFLICT (id) DO NOTHING;
 
 -- ─── RLS policies ────────────────────────────────────
--- anon: deny all
-CREATE POLICY "operscale_anon_deny_select" ON storage.objects
+-- anon: deny all (SELECT, INSERT, UPDATE, DELETE) on operscale buckets
+CREATE POLICY IF NOT EXISTS "operscale_anon_deny_select" ON storage.objects
   FOR SELECT TO anon
   USING (bucket_id NOT IN ('order-deliverables','customer-photos','customer-voice-samples','customer-logos'));
 
-CREATE POLICY "operscale_anon_deny_insert" ON storage.objects
+CREATE POLICY IF NOT EXISTS "operscale_anon_deny_insert" ON storage.objects
   FOR INSERT TO anon
   WITH CHECK (bucket_id NOT IN ('order-deliverables','customer-photos','customer-voice-samples','customer-logos'));
 
+CREATE POLICY IF NOT EXISTS "operscale_anon_deny_update" ON storage.objects
+  FOR UPDATE TO anon
+  USING (bucket_id NOT IN ('order-deliverables','customer-photos','customer-voice-samples','customer-logos'));
+
+CREATE POLICY IF NOT EXISTS "operscale_anon_deny_delete" ON storage.objects
+  FOR DELETE TO anon
+  USING (bucket_id NOT IN ('order-deliverables','customer-photos','customer-voice-samples','customer-logos'));
+
 -- service_role: full access on operscale buckets
-CREATE POLICY "operscale_service_role_all" ON storage.objects
+CREATE POLICY IF NOT EXISTS "operscale_service_role_all" ON storage.objects
   FOR ALL TO service_role
   USING (bucket_id IN ('order-deliverables','customer-photos','customer-voice-samples','customer-logos'))
   WITH CHECK (bucket_id IN ('order-deliverables','customer-photos','customer-voice-samples','customer-logos'));
