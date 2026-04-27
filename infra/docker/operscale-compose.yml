@@ -27,7 +27,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.operscale-web.rule=Host(`plovera.shop`) || Host(`www.plovera.shop`)"
       - "traefik.http.routers.operscale-web.tls=true"
-      - "traefik.http.routers.operscale-web.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.operscale-web.tls.certresolver=mytlschallenge"
       - "traefik.http.routers.operscale-web.entrypoints=websecure"
       - "traefik.http.services.operscale-web.loadbalancer.server.port=80"
 
@@ -42,13 +42,11 @@ services:
       - /data/operscale-production:/data/operscale-production
       - ./apps/agent:/app:ro
     working_dir: /app
-    env_file:
-      - /docker/operscale-video-ads/.env.agent
 
 networks:
   traefik-net:
     external: true
-    name: traefik-net
+    name: n8n_n8n_network
   operscale-net:
     driver: bridge
 
